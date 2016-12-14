@@ -1,0 +1,9 @@
+[DEFAULT]
+loglevel:10
+logfile:/dev/stdout
+
+[matrix]
+uri:https://matrix.org
+username:username
+password:password
+room:!room:matrix.org

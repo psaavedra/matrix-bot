@@ -1,0 +1,129 @@
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
+#
+# Author: Pablo Saavedra
+# Maintainer: Pablo Saavedra
+# Contact: saavedra.pablo at gmail.com
+
+import argparse
+import getconf
+import logging
+import pprint
+import sys
+import time
+
+from matrix_client.api import MatrixHttpApi
+from matrix_client.client import MatrixClient
+
+try:
+    reload(sys)
+    sys.setdefaultencoding('utf-8')  # Forcing UTF-8 in the enviroment:
+    # http://stackoverflow.com/questions/3828723/why-we-need-sys-setdefaultencodingutf-8-in-a-py-scrip
+except Exception:
+    pass
+
+
+## GLOBAL VARS #################################################################
+
+conffile = ".matrixbot.cfg"
+
+settings = {}
+settings["DEFAULT"] = {
+    "loglevel": 10,
+    "logfile": "/dev/stdout"
+}
+settings["matrix"] = {
+    "uri": "http://localhost:8000",
+    "username": "username",
+    "password": "password",
+    "room": "room",
+}
+sync_token = None
+
+DEV_NULL = '/dev/null'
+
+
+# Functions ####################################################################
+
+def setup(conffile, settings):
+    config = getconf.ConfigGetter('matrixbot',
+                                  config_files=['/etc/matrixbot/settings.ini',
+                                                '.matrixbot.ini',
+                                                conffile],
+                                  defaults=settings)
+    for s in settings.keys():
+        for k in settings[s].keys():
+            if s == "DEFAULT":
+                if k == "loglevel":
+                    settings[s][k] = config.getint(k)
+                else:
+                    settings[s][k] = config.get(k)
+            else:
+                settings[s][k] = config.get("%s.%s" % (s, k))
+
+
+def debug_conffile(settings, logger):
+    for s in settings.keys():
+        for k in settings[s].keys():
+            key = "%s.%s" % (s, k)
+            value = settings[s][k]
+            logger.debug("Configuration setting - %s: %s" % (key, value))
+
+
+## command line options parser #################################################
+parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--conffile", dest="conffile", default=conffile,
+                    help="Conffile (default: %s)" % conffile)
+args = parser.parse_args()
+conffile = args.conffile
+
+# setting up ###################################################################
+setup(conffile, settings)
+
+## logging #####################################################################
+hdlr = logging.FileHandler(settings["DEFAULT"]["logfile"])
+hdlr.setFormatter(logging.Formatter('%(levelname)s %(asctime)s %(message)s'))
+logger = logging.getLogger('matrixbot')
+logger.addHandler(hdlr)
+logger.setLevel(settings["DEFAULT"]["loglevel"])
+logger.debug("Default encoding: %s" % sys.getdefaultencoding())
+debug_conffile(settings, logger)
+
+
+def _sync(timeout_ms=30000):
+    global sync_token
+    global logger
+    pp = pprint.PrettyPrinter(indent=4)
+
+    response = matrix.sync(sync_token, timeout_ms)
+    sync_token = response["next_batch"]
+    logger.info("+++ sync_token: %s" % (sync_token))
+
+    for room_id, sync_room in response['rooms']['join'].items():
+        logger.info(">>> %s: %s" % (room_id, sync_room))
+        pp.pprint(sync_room)
+        # TODO: handler for the received messages
+        # matrix.kick_user(room_id, "@psaavedra:igalia.com", reason="Vete")
+
+
+## main ########################################################################
+if __name__ == '__main__':
+    uri = settings["matrix"]["uri"]
+    username = settings["matrix"]["username"]
+    password = settings["matrix"]["password"]
+    room_id = settings["matrix"]["room"]
+
+    client = MatrixClient(uri)
+
+    token = client.login_with_password(username=username,
+                                       password=password)
+
+    room = client.join_room(room_id)
+
+    matrix = MatrixHttpApi(uri, token=token)
+    response = matrix.send_message(room_id, "Hello!!!")
+    while True:
+        _sync()
+        time.sleep(10)
+
+sys.exit(0)
