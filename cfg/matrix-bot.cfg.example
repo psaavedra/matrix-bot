@@ -1,9 +1,11 @@
 [DEFAULT]
 loglevel:10
 logfile:/dev/stdout
+period:10
 
 [matrix]
 uri:https://matrix.org
 username:username
 password:password
 room:!room:matrix.org
+domain:matrix.org

@@ -12,7 +12,7 @@ import pprint
 import sys
 import time
 
-from matrix_client.api import MatrixHttpApi
+from matrix_client.api import MatrixHttpApi, MatrixRequestError
 from matrix_client.client import MatrixClient
 
 try:
@@ -30,13 +30,15 @@ conffile = ".matrixbot.cfg"
 settings = {}
 settings["DEFAULT"] = {
     "loglevel": 10,
-    "logfile": "/dev/stdout"
+    "logfile": "/dev/stdout",
+    "period": 30,
 }
 settings["matrix"] = {
     "uri": "http://localhost:8000",
     "username": "username",
     "password": "password",
-    "room": "room",
+    "domain": "matrix.org",
+    "rooms": []
 }
 sync_token = None
 
@@ -56,10 +58,15 @@ def setup(conffile, settings):
             if s == "DEFAULT":
                 if k == "loglevel":
                     settings[s][k] = config.getint(k)
+                elif k == "period":
+                    settings[s][k] = config.getint(k)
                 else:
                     settings[s][k] = config.get(k)
             else:
-                settings[s][k] = config.get("%s.%s" % (s, k))
+                if s == "matrix" and k == "rooms":
+                    settings[s][k] = config.getlist("%s.%s" % (s, k))
+                else:
+                    settings[s][k] = config.get("%s.%s" % (s, k))
 
 
 def debug_conffile(settings, logger):
@@ -68,6 +75,131 @@ def debug_conffile(settings, logger):
             key = "%s.%s" % (s, k)
             value = settings[s][k]
             logger.debug("Configuration setting - %s: %s" % (key, value))
+
+
+def is_command(body, command="command_name"):
+    global logger
+    res = False
+    print "XXX:"
+    print body.strip()
+    if body.lower().strip().startswith("%s:" % username.lower()):
+        command_list = body.split()[1:]
+        if len(command_list) == 0:
+            if command == "help":
+                res = True
+        else:
+            if command_list[0] == command:
+                res = True
+    logger.debug("is_%s: %s" % (command, res))
+    return res
+
+
+def do_invite(room_id, body):
+    global settings
+    global logger
+    domain = settings["matrix"]["domain"]
+    user_list = body.split()[2:]
+    for user in user_list:
+        if user.startswith("+"):
+            logger.warning("Invitation for groups (%s) are not yet implemented" % (user))
+            send_message(room_id, "Invitation for groups (%s) are not yet implemented" % (user))
+            return
+        if not user.startswith("@"):
+            user = "@" + user
+            logger.debug("Adding missing '@' to the username: %s" % user)
+        user_id = "%s:%s" % (user, domain)
+        try:
+            matrix.invite_user(room_id, user_id)
+            logger.debug("do_invite (%s, %s)" % (room_id, user_id))
+            send_message(room_id, "Invitation to room %s sent to %s" % (room_id, user_id))
+        except MatrixRequestError, e:
+            logger.warning(e)
+            send_message(room_id, "Oops!!!: %s" % (e))
+
+
+def do_help(room_id, body):
+    global settings
+    global logger
+    try:
+        logger.debug("do_help")
+        msg_help = '''Examples:
+%(username)s: help
+%(username)s: invite @user
+%(username)s: invite +group
+''' % settings["matrix"]
+        send_message(room_id, msg_help)
+    except MatrixRequestError, e:
+        logger.warning(e)
+
+
+"""
+!tCJSFItQepinfLsbsG:matrix.org: {
+    u'unread_notifications': {},
+    u'timeline': {
+       u'limited': False,
+       u'prev_batch': u's1277469_2130035_25505_58187_1054_456_348',
+       u'events': [
+           {
+             u'origin_server_ts': 1481802113027,
+             u'sender': u'@psaavedra:matrix.org',
+             u'event_id':   u'$1481802113581950vQMLt:matrix.org',
+             u'unsigned':
+                 { u'age': 3931},
+             u'content': {u'body': u'bot: invite @adrian',
+                     u'msgtype': u'm.text'},
+             u'type': u'm.room.message'
+            }]},
+        u'state': {u'events': []},
+        u'account_data': {u'events':
+                         []},
+        u'ephemeral': {
+           u'events': [
+                         {u'content': {u'user_ids': []},
+                         u'type': u'm.typing'}]}
+}
+"""
+
+
+def sync(matrix, timeout_ms=30000):
+    global settings
+    global sync_token
+    global logger
+    username = settings["matrix"]["username"]
+
+    pp = pprint.PrettyPrinter(indent=4)
+
+    response = matrix.sync(sync_token, timeout_ms)
+    sync_token = response["next_batch"]
+    logger.info("+++ sync_token: %s" % (sync_token))
+
+    for room_id, sync_room in response['rooms']['join'].items():
+        logger.info(">>> %s: %s" % (room_id, sync_room))
+        pp.pprint(sync_room)
+        # TODO: handler for the received messages
+        # matrix.kick_user(room_id, "@username:matrix.org", reason="kick out")
+        for event in sync_room["timeline"]["events"]:
+            if event["type"] == 'm.room.message' and \
+                    event["content"]["msgtype"] == 'm.text':
+                body = event["content"]["body"]
+                if body.lower().strip().startswith("%s:" % username.lower()):
+                    if is_command(body, "invite"):
+                        do_invite(room_id, body)
+                    elif is_command(body, "help"):
+                        do_help(room_id, body)
+                    else:
+                        do_help(room_id, body)
+
+
+def join_rooms(client, room_ids,  silent=True):
+    for room_id in room_ids:
+        room = client.join_room(room_id)
+        if not silent:
+            room.send_text("Mornings!")
+
+
+def send_message(room_id, message):
+        response = matrix.send_message(room_id, message)
+        return response
 
 
 ## command line options parser #################################################
@@ -90,40 +222,22 @@ logger.debug("Default encoding: %s" % sys.getdefaultencoding())
 debug_conffile(settings, logger)
 
 
-def _sync(timeout_ms=30000):
-    global sync_token
-    global logger
-    pp = pprint.PrettyPrinter(indent=4)
-
-    response = matrix.sync(sync_token, timeout_ms)
-    sync_token = response["next_batch"]
-    logger.info("+++ sync_token: %s" % (sync_token))
-
-    for room_id, sync_room in response['rooms']['join'].items():
-        logger.info(">>> %s: %s" % (room_id, sync_room))
-        pp.pprint(sync_room)
-        # TODO: handler for the received messages
-        # matrix.kick_user(room_id, "@psaavedra:igalia.com", reason="Vete")
-
-
 ## main ########################################################################
 if __name__ == '__main__':
+    period = settings["DEFAULT"]["period"]
     uri = settings["matrix"]["uri"]
     username = settings["matrix"]["username"]
     password = settings["matrix"]["password"]
-    room_id = settings["matrix"]["room"]
+    room_ids = settings["matrix"]["rooms"]
 
     client = MatrixClient(uri)
-
     token = client.login_with_password(username=username,
                                        password=password)
-
-    room = client.join_room(room_id)
-
     matrix = MatrixHttpApi(uri, token=token)
-    response = matrix.send_message(room_id, "Hello!!!")
-    while True:
-        _sync()
-        time.sleep(10)
 
+    join_rooms(client, room_ids, silent=False)
+
+    while True:
+        sync(matrix)
+        time.sleep(period)
 sys.exit(0)
