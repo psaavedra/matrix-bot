@@ -7,5 +7,11 @@ period:10
 uri:https://matrix.org
 username:username
 password:password
-room:!room:matrix.org
+rooms:!room:matrix.org,
 domain:matrix.org
+
+[ldap]
+server:ldap://ldap.local
+base:ou=People,dc=example,dc=com
+groups:person,
+person:(objectClass=person)

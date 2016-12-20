@@ -7,8 +7,9 @@
 
 import argparse
 import getconf
+import ldap
 import logging
-import pprint
+# import pprint
 import sys
 import time
 
@@ -40,13 +41,18 @@ settings["matrix"] = {
     "domain": "matrix.org",
     "rooms": []
 }
+settings["ldap"] = {
+    "server": "ldap://ldap.local",
+    "base": "ou=People,dc=example,dc=com",
+    "groups": []
+}
+
 sync_token = None
 
 DEV_NULL = '/dev/null'
 
 
 # Functions ####################################################################
-
 def setup(conffile, settings):
     config = getconf.ConfigGetter('matrixbot',
                                   config_files=['/etc/matrixbot/settings.ini',
@@ -65,6 +71,11 @@ def setup(conffile, settings):
             else:
                 if s == "matrix" and k == "rooms":
                     settings[s][k] = config.getlist("%s.%s" % (s, k))
+                elif s == "ldap" and k == "groups":
+                    settings[s][k] = config.getlist("%s.%s" % (s, k))
+                    # Load the LDAP filters
+                    for g in settings[s][k]:
+                        settings[s][g] = config.get("%s.%s" % (s, g))
                 else:
                     settings[s][k] = config.get("%s.%s" % (s, k))
 
@@ -77,11 +88,33 @@ def debug_conffile(settings, logger):
             logger.debug("Configuration setting - %s: %s" % (key, value))
 
 
+def get_ldap_group_members(ldap_settings, groups=None, logger=None):
+    ldap_server = ldap_settings["server"]
+    ldap_base = ldap_settings["base"]
+    ldap_groups = ldap_settings["groups"]
+    get_uid = lambda x: x[1]["uid"][0]
+    if groups:
+        ldap_groups = filter(lambda x: x in groups, ldap_groups)
+    res = {}
+    try:
+        conn = ldap.initialize(ldap_server)
+        for g in ldap_groups:
+            g_ldap_filter = ldap_settings[g]
+            logger.debug("Searching members for %s: %s" % (g, g_ldap_filter))
+            items = conn.search_s(ldap_base, ldap.SCOPE_SUBTREE,
+                                  attrlist=['uid'],
+                                  filterstr=g_ldap_filter)
+            members = map(get_uid, items)
+            res[g] = members
+    except Exception, e:
+        if logger:
+            logger.error("Error getting groups from LDAP: %s" % e)
+    return res
+
+
 def is_command(body, command="command_name"):
     global logger
     res = False
-    print "XXX:"
-    print body.strip()
     if body.lower().strip().startswith("%s:" % username.lower()):
         command_list = body.split()[1:]
         if len(command_list) == 0:
@@ -94,70 +127,60 @@ def is_command(body, command="command_name"):
     return res
 
 
-def do_invite(room_id, body):
-    global settings
+def do_invite_user(user_id, room_id):
     global logger
+    global settings
     domain = settings["matrix"]["domain"]
-    user_list = body.split()[2:]
-    for user in user_list:
-        if user.startswith("+"):
-            logger.warning("Invitation for groups (%s) are not yet implemented" % (user))
-            send_message(room_id, "Invitation for groups (%s) are not yet implemented" % (user))
-            return
-        if not user.startswith("@"):
-            user = "@" + user
-            logger.debug("Adding missing '@' to the username: %s" % user)
-        user_id = "%s:%s" % (user, domain)
-        try:
-            matrix.invite_user(room_id, user_id)
-            logger.debug("do_invite (%s, %s)" % (room_id, user_id))
-            send_message(room_id, "Invitation to room %s sent to %s" % (room_id, user_id))
-        except MatrixRequestError, e:
-            logger.warning(e)
-            send_message(room_id, "Oops!!!: %s" % (e))
+    if not user_id.startswith("@"):
+        user_id = "@" + user_id
+        logger.debug("Adding missing '@' to the username: %s" % user_id)
+    user_id = "%s:%s" % (user_id, domain)
+    try:
+        matrix.invite_user(room_id, user_id)
+        logger.info("do_invite (%s, %s)" % (room_id, user_id))
+        send_message(room_id, "Invitation to room %s sent to %s" % (room_id, user_id))
+    except MatrixRequestError, e:
+        logger.warning(e)
+        send_message(room_id, "Oops!!!: %s" % (e))
+
+
+def do_invite(room_id, body):
+    global logger
+    global settings
+    ldap_settings = settings["ldap"]
+    arg_list = body.split()[2:]
+    for arg in arg_list:
+        if arg.startswith("+"):
+            group_name = arg[1:]
+            logger.info("Sending invitation for group (%s)" % (group_name))
+            send_message(room_id,
+                         "Sending invitation for group (%s)" % (group_name))
+            groups_members = get_ldap_group_members(ldap_settings,
+                                                    logger=logger)
+            if group_name in groups_members.keys():
+                for group_member in groups_members[group_name]:
+                    do_invite_user(group_member, room_id)
+        else:
+            do_invite_user(arg, room_id)
 
 
 def do_help(room_id, body):
     global settings
     global logger
+    vars_ = settings["matrix"].copy()
+    vars_["groups"] = ', '.join(settings["ldap"]["groups"])
     try:
         logger.debug("do_help")
         msg_help = '''Examples:
 %(username)s: help
 %(username)s: invite @user
 %(username)s: invite +group
-''' % settings["matrix"]
+
+Available groups: %(groups)s
+''' % vars_
         send_message(room_id, msg_help)
     except MatrixRequestError, e:
         logger.warning(e)
-
-
-"""
-!tCJSFItQepinfLsbsG:matrix.org: {
-    u'unread_notifications': {},
-    u'timeline': {
-       u'limited': False,
-       u'prev_batch': u's1277469_2130035_25505_58187_1054_456_348',
-       u'events': [
-           {
-             u'origin_server_ts': 1481802113027,
-             u'sender': u'@psaavedra:matrix.org',
-             u'event_id':   u'$1481802113581950vQMLt:matrix.org',
-             u'unsigned':
-                 { u'age': 3931},
-             u'content': {u'body': u'bot: invite @adrian',
-                     u'msgtype': u'm.text'},
-             u'type': u'm.room.message'
-            }]},
-        u'state': {u'events': []},
-        u'account_data': {u'events':
-                         []},
-        u'ephemeral': {
-           u'events': [
-                         {u'content': {u'user_ids': []},
-                         u'type': u'm.typing'}]}
-}
-"""
 
 
 def sync(matrix, timeout_ms=30000):
@@ -166,17 +189,14 @@ def sync(matrix, timeout_ms=30000):
     global logger
     username = settings["matrix"]["username"]
 
-    pp = pprint.PrettyPrinter(indent=4)
-
     response = matrix.sync(sync_token, timeout_ms)
     sync_token = response["next_batch"]
     logger.info("+++ sync_token: %s" % (sync_token))
 
     for room_id, sync_room in response['rooms']['join'].items():
         logger.info(">>> %s: %s" % (room_id, sync_room))
-        pp.pprint(sync_room)
-        # TODO: handler for the received messages
-        # matrix.kick_user(room_id, "@username:matrix.org", reason="kick out")
+        # pp = pprint.PrettyPrinter(indent=4)
+        # pp.pprint(sync_room)
         for event in sync_room["timeline"]["events"]:
             if event["type"] == 'm.room.message' and \
                     event["content"]["msgtype"] == 'm.text':
@@ -197,9 +217,17 @@ def join_rooms(client, room_ids,  silent=True):
             room.send_text("Mornings!")
 
 
-def send_message(room_id, message):
-        response = matrix.send_message(room_id, message)
-        return response
+def send_message(room_id, message, max_attempts=3, wait=60):
+    global logger
+    attempts = max_attempts
+    while attempts:
+        try:
+            response = matrix.send_message(room_id, message)
+            return response
+        except MatrixRequestError:
+            logger.error("Error sending message (%s/%s) to room %s: %s" %
+                         (attempts, max_attempts, room_id, message))
+            max_attempts -= 1
 
 
 ## command line options parser #################################################
