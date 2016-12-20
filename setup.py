@@ -43,9 +43,8 @@ setup(
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "License :: OSI Approved :: MIT License",
-        "Topic :: System :: Operating System Kernels :: Linux",
         "Programming Language :: Python",
-        "Topic :: Multimedia :: Video :: Capture",
+        "Topic :: Communications :: Chat",
     ],
     long_description=long_description,
     license=license,
