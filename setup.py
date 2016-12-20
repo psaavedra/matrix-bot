@@ -31,8 +31,8 @@ setup(
     zip_safe=False,
     install_requires=[
         "getconf",
-        "ldap",
         "matrix-client",
+        "python-ldap",
     ],
     data_files=[
         ('/usr/share/doc/matrix-bot/',
