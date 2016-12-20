@@ -212,9 +212,13 @@ def sync(matrix, timeout_ms=30000):
 
 def join_rooms(client, room_ids,  silent=True):
     for room_id in room_ids:
-        room = client.join_room(room_id)
-        if not silent:
-            room.send_text("Mornings!")
+        try:
+            room = client.join_room(room_id)
+            if not silent:
+                room.send_text("Mornings!")
+        except MatrixRequestError, e:
+            logger.error("Error joining in the room %s: %s" %
+                         (room_id, e))
 
 
 def send_message(room_id, message, max_attempts=3, wait=60):
@@ -224,9 +228,9 @@ def send_message(room_id, message, max_attempts=3, wait=60):
         try:
             response = matrix.send_message(room_id, message)
             return response
-        except MatrixRequestError:
-            logger.error("Error sending message (%s/%s) to room %s: %s" %
-                         (attempts, max_attempts, room_id, message))
+        except MatrixRequestError, e:
+            logger.error("Error sending message (%s/%s) to room %s: %s (%s)" %
+                         (attempts, max_attempts, room_id, message, e))
             max_attempts -= 1
 
 
