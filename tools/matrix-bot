@@ -199,6 +199,8 @@ def sync(matrix, timeout_ms=30000):
         # pp.pprint(sync_room)
         for event in sync_room["timeline"]["events"]:
             if event["type"] == 'm.room.message' and \
+                    "content" in event and \
+                    "msgtype" in event["content"] and \
                     event["content"]["msgtype"] == 'm.text':
                 body = event["content"]["body"]
                 if body.lower().strip().startswith("%s:" % username.lower()):
