@@ -217,7 +217,8 @@ def join_rooms(client, room_ids,  silent=True):
         try:
             room = client.join_room(room_id)
             if not silent:
-                room.send_text("Mornings!")
+                # room.send_text("Mornings!")
+                pass
         except MatrixRequestError, e:
             logger.error("Error joining in the room %s: %s" %
                          (room_id, e))
