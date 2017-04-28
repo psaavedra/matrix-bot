@@ -6,7 +6,10 @@
 
 import ldap
 
-def get_ldap_group_members(ldap_settings, groups=None, logger=None):
+from . import utils
+
+def get_ldap_group_members(ldap_settings, groups=None):
+    logger = utils.get_logger()
     ldap_server = ldap_settings["server"]
     ldap_base = ldap_settings["base"]
     ldap_groups = ldap_settings["groups"]
@@ -18,7 +21,8 @@ def get_ldap_group_members(ldap_settings, groups=None, logger=None):
         conn = ldap.initialize(ldap_server)
         for g in ldap_groups:
             g_ldap_filter = ldap_settings[g]
-            logger.debug("Searching members for %s: %s" % (g, g_ldap_filter))
+            if logger:
+                logger.debug("Searching members for %s: %s" % (g, g_ldap_filter))
             items = conn.search_s(ldap_base, ldap.SCOPE_SUBTREE,
                                   attrlist=['uid'],
                                   filterstr=g_ldap_filter)
