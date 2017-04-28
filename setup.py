@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version = "0.0.4"
+version = exec_file(("matrixbot", "__init__.py"))["__version__"]
 
 long_description = ""
 try:
