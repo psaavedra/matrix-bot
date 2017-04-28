@@ -32,46 +32,45 @@ class MatrixBot():
                                                      password=self.password)
         self.api = MatrixHttpApi(self.uri, token=self.token)
 
-    def do_invite(self, room_id, body):
-        ldap_settings = self.settings["ldap"]
-        arg_list = body.split()[2:]
-        for arg in arg_list:
-            if arg.startswith("+"):
-                group_name = arg[1:]
-                logger.info("Sending invitation for group (%s)" % (group_name))
-                send_message(room_id,
-                             "Sending invitation for group (%s)" % (group_name))
-                groups_members = bot_ldap.get_ldap_group_members(ldap_settings,
-                                                        logger=self.logger)
-                if group_name in groups_members.keys():
-                    for group_member in groups_members[group_name]:
-                        self.do_invite_user(group_member, room_id)
-            else:
-                self.do_invite_user(arg, room_id)
-
-    def do_invite_user(self, user_id, room_id):
+    def normalize_user_id(self, user_id):
         if not user_id.startswith("@"):
             user_id = "@" + user_id
             self.logger.debug("Adding missing '@' to the username: %s" % user_id)
-        user_id = "%s:%s" % (user_id, domain)
-        try:
-            self.api.invite_user(room_id, user_id)
-            self.logger.info("do_invite (%s, %s)" % (room_id, user_id))
-            self.send_message(room_id, "Invitation to room %s sent to %s" % (room_id, user_id))
-        except MatrixRequestError, e:
-            self.logger.warning(e)
-            self.send_message(room_id, "Oops!!!: %s" % (e))
+        user_id = "%s:%s" % (user_id, self.domain)
+        return user_id
 
-    def send_message(self, room_id, message, max_attempts=3, wait=60):
+    def do_command(self, action, room_id, body):
+        ldap_settings = self.settings["ldap"]
+        body_arg_list = body.split()[2:]
+        for body_arg in body_arg_list:
+            if body_arg.startswith("+"):
+                group_name = body_arg[1:]
+                self.send_message(room_id,
+                             "Doing (%s) for group (%s)" % (action, group_name))
+                groups_members = bot_ldap.get_ldap_group_members(ldap_settings)
+                if group_name in groups_members.keys():
+                    for group_member in groups_members[group_name]:
+                        user_id = self.normalize_user_id(group_name)
+                        self.call_api(action, 1, room_id, user_id)
+            else:
+                user_id = self.normalize_user_id(body_arg)
+                self.call_api(action, 1, room_id, user_id)
+
+    def call_api(self, action, max_attempts, *args):
+        method = getattr(self.api, action)
         attempts = max_attempts
         while attempts:
             try:
-                response = self.api.send_message(room_id, message)
+                response = method(*args)
+                self.logger.info("Call %s action with: %s" % (action, args))
                 return response
             except MatrixRequestError, e:
-                logger.error("Error sending message (%s/%s) to room %s: %s (%s)" %
-                             (attempts, max_attempts, room_id, message, e))
+                self.logger.error("Fail (%s/%s) in call %s action with: %s - %s" % (attempts, max_attempts, action, args, e))
                 max_attempts -= 1
+
+    def send_message(self, room_id, message):
+        return self.call_api("send_message", 3, 
+                      room_id, message)
     
     def is_command(self, body, command="command_name"):
         res = False
@@ -106,6 +105,9 @@ class MatrixBot():
 %(username)s: help
 %(username)s: invite @user
 %(username)s: invite +group
+%(username)s: kick @user
+%(username)s: kick +group
+
 
 Available groups: %(groups)s
 ''' % vars_
@@ -132,7 +134,9 @@ Available groups: %(groups)s
                     body = event["content"]["body"]
                     if body.lower().strip().startswith("%s:" % username):
                         if self.is_command(body, "invite"):
-                            self.do_invite(room_id, body)
+                            self.do_command("invite_user", room_id, body)
+                        elif self.is_command(body, "kick"):
+                            self.do_command("kick_user", room_id, body)
                         elif self.is_command(body, "help"):
                             self.do_help(room_id, body)
                         else:
