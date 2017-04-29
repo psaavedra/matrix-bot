@@ -17,12 +17,12 @@ class MatrixBot():
     def __init__(self, settings):
         self.sync_token = None
 
-        self.logger = utils.create_logger(settings)
+        self.logger = utils.get_logger()
 
         self.settings = settings
         self.period = settings["DEFAULT"]["period"]
         self.uri = settings["matrix"]["uri"]
-        self.username = settings["matrix"]["username"]
+        self.username = settings["matrix"]["username"].lower()
         self.password = settings["matrix"]["password"]
         self.room_ids = settings["matrix"]["rooms"]
         self.domain = self.settings["matrix"]["domain"]
@@ -70,7 +70,7 @@ class MatrixBot():
 
     def send_message(self, room_id, message):
         return self.call_api("send_message", 3, 
-                      room_id, message)
+                             room_id, message)
     
     def is_command(self, body, command="command_name"):
         res = False
@@ -90,10 +90,9 @@ class MatrixBot():
             try:
                 room = self.client.join_room(room_id)
                 if not silent:
-                    # room.send_text("Mornings!")
-                    pass
+                    self.send_message(room_id, "Mornings!")
             except MatrixRequestError, e:
-                logger.error("Error joining in the room %s: %s" %
+                logger.error("Join action in room %s failed: %s" %
                              (room_id, e))
     
     def do_help(self, room_id, body):
@@ -116,23 +115,34 @@ Available groups: %(groups)s
             self.logger.warning(e)
 
     def sync(self, timeout_ms=30000):
-        username = self.username.lower()
-
         response = self.api.sync(self.sync_token, timeout_ms)
         self.sync_token = response["next_batch"]
-        self.logger.info("+++ sync_token: %s" % (self.sync_token))
+        self.logger.info("!!! sync_token: %s" % (self.sync_token))
+        self.logger.debug("Sync response: %s" % (response))
 
-        for room_id, sync_room in response['rooms']['join'].items():
-            self.logger.info(">>> %s: %s" % (room_id, sync_room))
-            # pp = pprint.PrettyPrinter(indent=4)
-            # pp.pprint(sync_room)
+        self.sync_invitations(response['rooms']['invite'])
+        self.sync_joins(response['rooms']['join'])
+        time.sleep(self.period)
+
+    def sync_invitations(self, invite_events):
+        for room_id, invite_state in invite_events.items():
+            self.logger.info("+++ (invite) %s" % (room_id))
+            for event in invite_state["invite_state"]["events"]:
+                if event["type"] == 'm.room.member' and \
+                        "membership" in event and \
+                        event["membership"] == 'invite':
+                    self.call_api("join_room", 1, room_id)
+
+    def sync_joins(self, join_events):
+        for room_id, sync_room in join_events.items():
+            self.logger.info(">>> (join) %s" % (room_id))
             for event in sync_room["timeline"]["events"]:
                 if event["type"] == 'm.room.message' and \
                         "content" in event and \
                         "msgtype" in event["content"] and \
                         event["content"]["msgtype"] == 'm.text':
                     body = event["content"]["body"]
-                    if body.lower().strip().startswith("%s:" % username):
+                    if body.lower().strip().startswith("%s:" % self.username):
                         if self.is_command(body, "invite"):
                             self.do_command("invite_user", room_id, body)
                         elif self.is_command(body, "kick"):
@@ -142,4 +152,3 @@ Available groups: %(groups)s
                         else:
                             self.do_help(room_id, body)
 
-        time.sleep(self.period)
