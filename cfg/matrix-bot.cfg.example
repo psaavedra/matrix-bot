@@ -13,5 +13,8 @@ domain:matrix.org
 [ldap]
 server:ldap://ldap.local
 base:ou=People,dc=example,dc=com
-groups:person,
-person:(objectClass=person)
+groups:group1,group2,persons
+groups_base:ou=Group,dc=example,dc=com
+groups_filter:(objectClass=posixGroup)
+groups_id:cn
+persons:(objectClass=person)

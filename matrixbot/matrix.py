@@ -47,7 +47,7 @@ class MatrixBot():
                 group_name = body_arg[1:]
                 self.send_message(room_id,
                              "Doing (%s) for group (%s)" % (action, group_name))
-                groups_members = bot_ldap.get_ldap_group_members(ldap_settings)
+                groups_members = bot_ldap.get_ldap_groups_members(ldap_settings)
                 if group_name in groups_members.keys():
                     for group_member in groups_members[group_name]:
                         user_id = self.normalize_user_id(group_name)
@@ -59,14 +59,14 @@ class MatrixBot():
     def call_api(self, action, max_attempts, *args):
         method = getattr(self.api, action)
         attempts = max_attempts
-        while attempts:
+        while attempts > 0:
             try:
                 response = method(*args)
                 self.logger.info("Call %s action with: %s" % (action, args))
                 return response
             except MatrixRequestError, e:
                 self.logger.error("Fail (%s/%s) in call %s action with: %s - %s" % (attempts, max_attempts, action, args, e))
-                max_attempts -= 1
+                attempts -= 1
 
     def send_message(self, room_id, message):
         return self.call_api("send_message", 3, 
@@ -94,7 +94,46 @@ class MatrixBot():
             except MatrixRequestError, e:
                 logger.error("Join action in room %s failed: %s" %
                              (room_id, e))
+
     
+    def do_list(self, room_id, body):
+        self.logger.debug("do_list")
+        ldap_settings = self.settings["ldap"]
+        body_arg_list = body.split()[2:]
+        msg_list = ""
+
+        if len(body_arg_list) == 0:
+            msg_list = "groups:"
+            groups = bot_ldap.get_groups(ldap_settings)
+            for g in groups:
+                msg_list += " %s" % g
+            try:
+                self.send_message(room_id, msg_list)
+            except MatrixRequestError, e:
+                self.logger.warning(e)
+            return
+ 
+        groups_members = bot_ldap.get_ldap_groups_members(ldap_settings)
+        self.logger.error( groups_members)
+        for body_arg in body_arg_list:
+            if body_arg.startswith("+"):
+                group_name = body_arg[1:]
+                if group_name in groups_members.keys():
+                    msg_list = "group %s members:" % group_name
+                    for group_member in groups_members[group_name]:
+                        user_id = self.normalize_user_id(group_member)
+                        msg_list += " %s" % user_id
+                else:
+                    msg_list = "group %s not found" % group_name
+            else:
+                user_id = self.normalize_user_id(body_arg)
+                msg_list = "user: %s" % (user_id)
+            try:
+                self.send_message(room_id, msg_list)
+            except MatrixRequestError, e:
+                self.logger.warning(e)
+
+
     def do_help(self, room_id, body):
         vars_ = self.settings["matrix"].copy()
         vars_["groups"] = ', '.join(self.settings["ldap"]["groups"])
@@ -102,10 +141,9 @@ class MatrixBot():
             self.logger.debug("do_help")
             msg_help = '''Examples:
 %(username)s: help
-%(username)s: invite @user
-%(username)s: invite +group
-%(username)s: kick @user
-%(username)s: kick +group
+%(username)s: invite (@user|+group)
+%(username)s: kick (@user|+group)
+%(username)s: list +group
 
 
 Available groups: %(groups)s
@@ -113,6 +151,7 @@ Available groups: %(groups)s
             self.send_message(room_id, msg_help)
         except MatrixRequestError, e:
             self.logger.warning(e)
+
 
     def sync(self, timeout_ms=30000):
         response = self.api.sync(self.sync_token, timeout_ms)
@@ -147,6 +186,8 @@ Available groups: %(groups)s
                             self.do_command("invite_user", room_id, body)
                         elif self.is_command(body, "kick"):
                             self.do_command("kick_user", room_id, body)
+                        elif self.is_command(body, "list"):
+                            self.do_list(room_id, body)
                         elif self.is_command(body, "help"):
                             self.do_help(room_id, body)
                         else:

@@ -26,7 +26,10 @@ def get_default_settings():
     settings["ldap"] = {
         "server": "ldap://ldap.local",
         "base": "ou=People,dc=example,dc=com",
-        "groups": []
+        "groups": [],
+        "groups_id": "cn",
+        "groups_filter": "(objectClass=posixGroup)",
+        "groups_base": "ou=Group,dc=example,dc=com",
     }
     return settings 
  
