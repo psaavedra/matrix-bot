@@ -10,6 +10,7 @@ import ldap as LDAP
 
 from . import utils
 
+
 def get_custom_ldap_group_members(ldap_settings, group_name):
     logger = utils.get_logger()
     ldap_server = ldap_settings["server"]

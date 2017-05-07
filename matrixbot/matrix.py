@@ -13,6 +13,7 @@ import time
 from . import utils
 from . import ldap as bot_ldap
 
+
 class MatrixBot():
     def __init__(self, settings):
         self.sync_token = None
@@ -99,9 +100,10 @@ class MatrixBot():
                 time.sleep(5)
 
     def send_message(self, room_id, message):
-        return self.call_api("send_message", 3, 
+        return self.call_api("send_message", 3,
                              room_id, message)
-    
+
+
     def is_command(self, body, command="command_name"):
         res = False
         if body.lower().strip().startswith("%s:" % self.username.lower()):
@@ -118,14 +120,14 @@ class MatrixBot():
     def join_rooms(self, silent=True):
         for room_id in self.room_ids:
             try:
-                room = self.client.join_room(room_id)
+                self.client.join_room(room_id)
                 if not silent:
                     self.send_message(room_id, "Mornings!")
             except MatrixRequestError, e:
                 logger.error("Join action in room %s failed: %s" %
                              (room_id, e))
 
-    
+
     def do_list(self, room_id, body):
         self.logger.debug("do_list")
         ldap_settings = self.settings["ldap"]
@@ -229,4 +231,3 @@ Available groups: %(groups)s
                             self.do_help(room_id, body)
                         else:
                             self.do_help(room_id, body)
-
