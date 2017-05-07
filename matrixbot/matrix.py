@@ -180,14 +180,14 @@ Available groups: %(groups)s
             self.logger.warning(e)
 
 
-    def sync(self, timeout_ms=30000):
+    def sync(self, ignore=False, timeout_ms=30000):
         response = self.api.sync(self.sync_token, timeout_ms)
         self.sync_token = response["next_batch"]
         self.logger.info("!!! sync_token: %s" % (self.sync_token))
         self.logger.debug("Sync response: %s" % (response))
-
-        self.sync_invitations(response['rooms']['invite'])
-        self.sync_joins(response['rooms']['join'])
+        if not ignore:
+            self.sync_invitations(response['rooms']['invite'])
+            self.sync_joins(response['rooms']['join'])
         time.sleep(self.period)
 
     def sync_invitations(self, invite_events):

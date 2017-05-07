@@ -33,6 +33,7 @@ if __name__ == '__main__':
         try:
             m = matrix.MatrixBot(settings)
             m.join_rooms(silent=True)
+            m.sync(ignore=True) # Ignoring pending old messages
             while True:
                 m.sync()
         except Exception, e:
