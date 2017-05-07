@@ -20,14 +20,14 @@ def get_custom_ldap_group_members(ldap_settings, group_name):
     try:
         conn = LDAP.initialize(ldap_server)
         g_ldap_filter = ldap_settings[group_name]
-        logger.debug("Searching members for %s: %s" % (group_name, 
+        logger.debug("Searching members for %s: %s" % (group_name,
                                                        g_ldap_filter))
         items = conn.search_s(ldap_base, LDAP.SCOPE_SUBTREE,
                               attrlist=['uid'],
                               filterstr=g_ldap_filter)
         members = map(get_uid, items)
     except Exception, e:
-        logger.error("Error getting custom group %s from LDAP: %s" %(group_name, e))
+        logger.error("Error getting custom group %s from LDAP: %s" % (group_name, e))
     return members
 
 
@@ -37,7 +37,7 @@ def get_ldap_group_members(ldap_settings, group_name):
     logger = utils.get_logger()
     ldap_server = ldap_settings["server"]
     ldap_base = ldap_settings["groups_base"]
-    ldap_filter = "(&%s(%s={group_name}))" % (ldap_settings["groups_filter"],ldap_settings["groups_id"])
+    ldap_filter = "(&%s(%s={group_name}))" % (ldap_settings["groups_filter"], ldap_settings["groups_id"])
     get_uid = lambda x: x.split(",")[0].split("=")[1]
     try:
         ad_filter = ldap_filter.replace('{group_name}', group_name)
@@ -67,8 +67,8 @@ the settings
     get_uid = lambda x: x[1]["cn"][0]
     try:
         conn = LDAP.initialize(ldap_server)
-        logger.debug("Searching groups: %s - %s - %s" % (ldap_server, 
-                                                         ldap_base, 
+        logger.debug("Searching groups: %s - %s - %s" % (ldap_server,
+                                                         ldap_base,
                                                          ldap_filter))
         res = conn.search_s(ldap_base, LDAP.SCOPE_SUBTREE, ldap_filter)
         return filter((lambda x: x in ldap_groups), map(get_uid, res))
