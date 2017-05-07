@@ -40,21 +40,48 @@ class MatrixBot():
         return user_id
 
     def do_command(self, action, room_id, body):
+        def add_or_remove_user(users,username,append):
+            username = self.normalize_user_id(username)
+            if append and username not in users["in"]:
+                users["in"].append(username)
+            if not append and username not in users["out"]:
+                users["out"].append(username)
+
         ldap_settings = self.settings["ldap"]
         body_arg_list = body.split()[2:]
+        dry_mode = False
+        if len(body_arg_list) > 0 and body_arg_list[0] == "dryrun":
+           dry_mode = True
+           body_arg_list = body.split()[3:]
+        append = True
+        users = {
+            "in":[],
+            "out":[]
+        }
         for body_arg in body_arg_list:
-            if body_arg.startswith("+"):
+            if body_arg == ("but"):
+                append = False
+            elif body_arg.startswith("+"):
                 group_name = body_arg[1:]
-                self.send_message(room_id,
-                             "Doing (%s) for group (%s)" % (action, group_name))
                 groups_members = bot_ldap.get_ldap_groups_members(ldap_settings)
                 if group_name in groups_members.keys():
                     for group_member in groups_members[group_name]:
-                        user_id = self.normalize_user_id(group_name)
-                        self.call_api(action, 1, room_id, user_id)
+                        add_or_remove_user(users, group_member,append)
             else:
-                user_id = self.normalize_user_id(body_arg)
-                self.call_api(action, 1, room_id, user_id)
+                add_or_remove_user(users, body_arg,append)
+
+        selected_users = filter(lambda x: x not in users["out"],users["in"])
+        for user in selected_users:
+            self.logger.debug(" do_command (%s,%s,%s,dry_mode=%s)" % (action, room_id, 
+                                                                      user, dry_mode))
+            if not dry_mode:
+                self.call_api(action, 3, room_id, user)
+        if dry_mode:
+            self.send_message(room_id, 
+                              "Simulated '%s' action over: %s" % (action, 
+                                                                  " ".join(selected_users)))
+
+
 
     def call_api(self, action, max_attempts, *args):
         method = getattr(self.api, action)
@@ -67,6 +94,7 @@ class MatrixBot():
             except MatrixRequestError, e:
                 self.logger.error("Fail (%s/%s) in call %s action with: %s - %s" % (attempts, max_attempts, action, args, e))
                 attempts -= 1
+                time.sleep(5)
 
     def send_message(self, room_id, message):
         return self.call_api("send_message", 3, 
@@ -141,10 +169,9 @@ class MatrixBot():
             self.logger.debug("do_help")
             msg_help = '''Examples:
 %(username)s: help
-%(username)s: invite (@user|+group)
-%(username)s: kick (@user|+group)
-%(username)s: list +group
-
+%(username)s: invite  [dryrun] (@user|+group) ... [ but (@user|+group) ]
+%(username)s: kick    [dryrun] (@user|+group) ... [ but (@user|+group) ]
+%(username)s: list    [+group]
 
 Available groups: %(groups)s
 ''' % vars_
@@ -170,7 +197,7 @@ Available groups: %(groups)s
                 if event["type"] == 'm.room.member' and \
                         "membership" in event and \
                         event["membership"] == 'invite':
-                    self.call_api("join_room", 1, room_id)
+                    self.call_api("join_room", 3, room_id)
 
     def sync_joins(self, join_events):
         for room_id, sync_room in join_events.items():
