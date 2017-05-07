@@ -8,6 +8,7 @@
 import getconf
 import sys
 import logging
+import copy
 
 def get_default_settings():
     settings = {}
@@ -30,6 +31,9 @@ def get_default_settings():
         "groups_id": "cn",
         "groups_filter": "(objectClass=posixGroup)",
         "groups_base": "ou=Group,dc=example,dc=com",
+    }
+    settings["aliases"] = {
+        "aliases": [],
     }
     return settings 
  
@@ -72,6 +76,11 @@ def setup(conffile, settings):
                     # Load the LDAP filters
                     for g in settings[s][k]:
                         settings[s][g] = config.get("%s.%s" % (s, g))
+                elif s == "aliases" and k == "aliases":
+                    settings[s][k] = config.getlist("%s.%s" % (s, k))
+                    # Load the command aliases
+                    for a in settings[s][k]:
+                        settings[s][a] = config.get("%s.%s" % (s, a))
                 else:
                     settings[s][k] = config.get("%s.%s" % (s, k))
 
@@ -89,3 +98,17 @@ def create_logger(settings):
 
 def get_logger():
     return logging.getLogger('matrixbot')
+
+
+def get_command_alias(command, settings):
+    prefix = command.strip().split()[0]
+    command = " ".join(command.strip().split()[1:])
+    if command in settings["aliases"].keys():
+        return prefix + " " + settings["aliases"][command]
+    return prefix + " " + command
+
+
+def get_aliases(settings):
+    res = copy.copy(settings["aliases"])
+    res.pop("aliases")
+    return res

@@ -71,16 +71,18 @@ class MatrixBot():
                 add_or_remove_user(users, body_arg,append)
 
         selected_users = filter(lambda x: x not in users["out"],users["in"])
-        for user in selected_users:
-            self.logger.debug(" do_command (%s,%s,%s,dry_mode=%s)" % (action, room_id, 
-                                                                      user, dry_mode))
-            if not dry_mode:
-                self.call_api(action, 3, room_id, user)
         if dry_mode:
             self.send_message(room_id, 
                               "Simulated '%s' action over: %s" % (action, 
                                                                   " ".join(selected_users)))
-
+        else:
+            if len(selected_users) > 0:
+                for user in selected_users:
+                    self.logger.debug(" do_command (%s,%s,%s,dry_mode=%s)" % (action, room_id, 
+                                                                              user, dry_mode))
+                    self.call_api(action, 3, room_id, user)
+            else:
+                self.send_message(room_id, "No users found")
 
 
     def call_api(self, action, max_attempts, *args):
@@ -165,6 +167,8 @@ class MatrixBot():
     def do_help(self, room_id, body):
         vars_ = self.settings["matrix"].copy()
         vars_["groups"] = ', '.join(self.settings["ldap"]["groups"])
+        vars_["aliases"] = "\n".join(map(lambda x: "%s: "  % vars_["username"] + "%s ==> %s" % x, 
+                                     utils.get_aliases(self.settings).items()))
         try:
             self.logger.debug("do_help")
             msg_help = '''Examples:
@@ -172,6 +176,10 @@ class MatrixBot():
 %(username)s: invite  [dryrun] (@user|+group) ... [ but (@user|+group) ]
 %(username)s: kick    [dryrun] (@user|+group) ... [ but (@user|+group) ]
 %(username)s: list    [+group]
+
+Available command aliases:
+
+%(aliases)s
 
 Available groups: %(groups)s
 ''' % vars_
@@ -208,6 +216,8 @@ Available groups: %(groups)s
                         "msgtype" in event["content"] and \
                         event["content"]["msgtype"] == 'm.text':
                     body = event["content"]["body"]
+                    body = utils.get_command_alias(body, self.settings)
+                    self.logger.error(body)
                     if body.lower().strip().startswith("%s:" % self.username):
                         if self.is_command(body, "invite"):
                             self.do_command("invite_user", room_id, body)
