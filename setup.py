@@ -47,6 +47,7 @@ setup(
     },
     scripts=[
         "tools/matrix-bot",
+        "tools/matrix-subscriber",
     ],
     zip_safe=False,
     install_requires=[
