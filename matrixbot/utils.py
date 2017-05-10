@@ -36,6 +36,12 @@ def get_default_settings():
     settings["aliases"] = {
         "aliases": [],
     }
+    settings["subscriptions"] = {
+        "rooms": [],
+    }
+    settings["revokations"] = {
+        "rooms": [],
+    }
     return settings
 
 
@@ -74,6 +80,11 @@ def set_setting(conffile, settings, s, k):
             # Load the command aliases
             for a in settings[s][k]:
                 settings[s][a] = config.get("%s.%s" % (s, a))
+        elif s in ["subscriptions", "revokations"] and k == "rooms":
+            settings[s][k] = config.getlist("%s.%s" % (s, k))
+            # Load the rooms where invite/kick users
+            for a in settings[s][k]:
+                settings[s][a] = config.get("%s.%s" % (s, "room-" + a))
         else:
             settings[s][k] = config.get("%s.%s" % (s, k))
 

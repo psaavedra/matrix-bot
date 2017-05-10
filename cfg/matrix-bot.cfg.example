@@ -23,3 +23,13 @@ persons:(objectClass=person)
 aliases:simple_invite,simple_kick
 simple_invite:invite +group1 +group2
 simple_kick:invite +group1 +group2
+
+[subscriptions]
+rooms:!room1,!room2
+room-!room1:@user1 @user2 but @user3
+room-!room2:+group1 +group2 but @user1
+
+[revokations]
+rooms:!room1,!room2
+room-!room1:@user1 @user2 but @user3
+room-!room2:+group1 +group2 but @user1

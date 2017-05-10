@@ -28,6 +28,9 @@ class MatrixBot():
         self.room_ids = settings["matrix"]["rooms"]
         self.domain = self.settings["matrix"]["domain"]
 
+        self.subscriptions_room_ids = settings["subscriptions"]["rooms"]
+        self.revokations_rooms_ids = settings["revokations"]["rooms"]
+
         self.client = MatrixClient(self.uri)
         self.token = self.client.login_with_password(username=self.username,
                                                      password=self.password)
@@ -37,7 +40,8 @@ class MatrixBot():
         if not user_id.startswith("@"):
             user_id = "@" + user_id
             self.logger.debug("Adding missing '@' to the username: %s" % user_id)
-        user_id = "%s:%s" % (user_id, self.domain)
+        if user_id.count(":") == 0:
+            user_id = "%s:%s" % (user_id, self.domain)
         return user_id
 
     def do_command(self, action, room_id, body):
@@ -85,6 +89,16 @@ class MatrixBot():
             else:
                 self.send_message(room_id, "No users found")
 
+    def invite_subscriptions(self):
+        for room_id in self.subscriptions_room_ids:
+            body = "bender: invite " + self.settings["subscriptions"][room_id]
+            self.do_command("invite_user", room_id, body)
+
+    def kick_revokations(self):
+        for room_id in self.revokations_rooms_ids:
+            body = "bender: kick " + self.settings["revokations"][room_id]
+            self.do_command("kick_user", room_id, body)
+
     def call_api(self, action, max_attempts, *args):
         method = getattr(self.api, action)
         attempts = max_attempts
@@ -118,12 +132,46 @@ class MatrixBot():
     def join_rooms(self, silent=True):
         for room_id in self.room_ids:
             try:
-                self.client.join_room(room_id)
+                room = self.client.join_room(room_id)
+                room_id = room.room_id # Ensure we are using the actual id not the alias
                 if not silent:
                     self.send_message(room_id, "Mornings!")
             except MatrixRequestError, e:
                 self.logger.error("Join action in room %s failed: %s" %
                                   (room_id, e))
+
+        new_subscriptions_room_ids = []
+        for room_id in self.subscriptions_room_ids:
+            try:
+                old_room_id = room_id
+                room_id = room_id + ':' + self.domain
+                room = self.client.join_room(room_id)
+                new_room_id = room.room_id # Ensure we are using the actual id not the alias
+                new_subscriptions_room_ids.append(new_room_id)
+                if not silent:
+                    self.send_message(new_room_id, "Mornings!")
+                self.settings["subscriptions"][new_room_id] = self.settings["subscriptions"][old_room_id]
+            except MatrixRequestError, e:
+                self.logger.error("Join action for subscribe users in room %s failed: %s" %
+                                  (room_id, e))
+        self.subscriptions_room_ids = new_subscriptions_room_ids
+
+        new_revokations_room_ids = []
+        for room_id in self.revokations_rooms_ids:
+            try:
+                old_room_id = room_id
+                room_id = room_id + ':' + self.domain
+                room = self.client.join_room(room_id)
+                new_room_id = room.room_id # Ensure we are using the actual id not the alias
+                new_revokations_room_ids.append(new_room_id)
+                if not silent:
+                    self.send_message(new_room_id, "Mornings!")
+                self.settings["revokations"][new_room_id] = self.settings["revokations"][old_room_id]
+            except MatrixRequestError, e:
+                self.logger.error("Join action for subscribe users in room %s failed: %s" %
+                                  (room_id, e))
+        self.revokations_rooms_ids = new_revokations_room_ids
+
 
     def do_list(self, room_id, body):
         self.logger.debug("do_list")
