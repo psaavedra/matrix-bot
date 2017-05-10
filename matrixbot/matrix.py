@@ -44,7 +44,7 @@ class MatrixBot():
             user_id = "%s:%s" % (user_id, self.domain)
         return user_id
 
-    def do_command(self, action, room_id, body):
+    def do_command(self, action, room_id, body, attempts=3):
         def add_or_remove_user(users, username, append):
             username = self.normalize_user_id(username)
             if append and username not in users["in"]:
@@ -85,19 +85,19 @@ class MatrixBot():
                 for user in selected_users:
                     self.logger.debug(" do_command (%s,%s,%s,dry_mode=%s)" % (action, room_id,
                                                                               user, dry_mode))
-                    self.call_api(action, 3, room_id, user)
+                    self.call_api(action, attempts, room_id, user)
             else:
                 self.send_message(room_id, "No users found")
 
     def invite_subscriptions(self):
         for room_id in self.subscriptions_room_ids:
             body = "bender: invite " + self.settings["subscriptions"][room_id]
-            self.do_command("invite_user", room_id, body)
+            self.do_command("invite_user", room_id, body, attempts=1)
 
     def kick_revokations(self):
         for room_id in self.revokations_rooms_ids:
             body = "bender: kick " + self.settings["revokations"][room_id]
-            self.do_command("kick_user", room_id, body)
+            self.do_command("kick_user", room_id, body, attempts=1)
 
     def call_api(self, action, max_attempts, *args):
         method = getattr(self.api, action)
