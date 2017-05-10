@@ -133,7 +133,7 @@ class MatrixBot():
         for room_id in self.room_ids:
             try:
                 room = self.client.join_room(room_id)
-                room_id = room.room_id # Ensure we are using the actual id not the alias
+                room_id = room.room_id  # Ensure we are using the actual id not the alias
                 if not silent:
                     self.send_message(room_id, "Mornings!")
             except MatrixRequestError, e:
@@ -146,7 +146,7 @@ class MatrixBot():
                 old_room_id = room_id
                 room_id = room_id + ':' + self.domain
                 room = self.client.join_room(room_id)
-                new_room_id = room.room_id # Ensure we are using the actual id not the alias
+                new_room_id = room.room_id  # Ensure we are using the actual id not the alias
                 new_subscriptions_room_ids.append(new_room_id)
                 if not silent:
                     self.send_message(new_room_id, "Mornings!")
@@ -162,16 +162,15 @@ class MatrixBot():
                 old_room_id = room_id
                 room_id = room_id + ':' + self.domain
                 room = self.client.join_room(room_id)
-                new_room_id = room.room_id # Ensure we are using the actual id not the alias
+                new_room_id = room.room_id  # Ensure we are using the actual id not the alias
                 new_revokations_room_ids.append(new_room_id)
                 if not silent:
                     self.send_message(new_room_id, "Mornings!")
                 self.settings["revokations"][new_room_id] = self.settings["revokations"][old_room_id]
             except MatrixRequestError, e:
-                self.logger.error("Join action for subscribe users in room %s failed: %s" %
+                self.logger.error("Join action for revoke users in room %s failed: %s" %
                                   (room_id, e))
         self.revokations_rooms_ids = new_revokations_room_ids
-
 
     def do_list(self, room_id, body):
         self.logger.debug("do_list")
