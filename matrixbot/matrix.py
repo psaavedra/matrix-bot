@@ -248,7 +248,9 @@ Available groups: %(groups)s
             for event in invite_state["invite_state"]["events"]:
                 if event["type"] == 'm.room.member' and \
                         "membership" in event and \
-                        event["membership"] == 'invite':
+                        event["membership"] == 'invite' and \
+                        "sender" in event and \
+                        event["sender"].endswith(self.domain):
                     self.call_api("join_room", 3, room_id)
 
     def sync_joins(self, join_events):
