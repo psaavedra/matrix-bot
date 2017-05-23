@@ -52,7 +52,7 @@ setup(
     zip_safe=False,
     install_requires=[
         "getconf",
-        "matrix-client",
+        "matrix-client>=0.0.6",
         "python-ldap",
     ],
     data_files=[
