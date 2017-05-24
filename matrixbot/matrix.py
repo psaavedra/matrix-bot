@@ -106,7 +106,8 @@ class MatrixBot():
                 "Simulated '%s' action in room '%s' over: %s" % (
                     action,
                     room_id,
-                    " ".join(selected_users)))
+                    " ".join(selected_users)),
+                room_id)
         else:
             if len(selected_users) > 0:
                 for user in selected_users:
@@ -119,7 +120,8 @@ class MatrixBot():
                     self.call_api(action, attempts, room_id, user)
             else:
                 self.send_private_message(sender,
-                                          "No users found")
+                                          "No users found",
+                                          room_id)
 
     def invite_subscriptions(self):
         for room_id in self.subscriptions_room_ids:
@@ -150,10 +152,16 @@ class MatrixBot():
         return self.call_api("send_message", 3,
                              room_id, message)
 
-    def send_private_message(self, user_id, message):
-        room_id = self.get_private_room_with(user_id)
+    def send_private_message(self, user_id, message, room_id=None):
+        user_room_id = self.get_private_room_with(user_id)
+        if room_id and room_id != user_room_id:
+            self.call_api(
+                "send_message", 
+                3,
+                room_id, 
+                "Replying command as PM to %s" % user_id)
         return self.call_api("send_message", 3,
-                             room_id, message)
+                             user_room_id, message)
 
     def leave_empty_rooms(self):
         self.logger.debug("leave_empty_rooms")
@@ -168,8 +176,8 @@ class MatrixBot():
                 self.logger.debug("Error getting the list of members in room %s: %s" % (room_id, e))
 
             if len(members_list) > 2:
-                self.logger.debug("Room %s is not a 1-to-1 room" % room_id)
                 continue  # We are looking for a 1-to-1 room
+
             for r in res.get('chunk', []):
                 if 'user_id' in r and 'membership' in r:
                     if r['membership'] == 'leave':
@@ -230,7 +238,10 @@ class MatrixBot():
 
     def is_command(self, body, command="command_name"):
         res = False
-        if body.lower().strip().startswith("%s:" % self.username.lower()):
+        if (
+            body.lower().strip().startswith("%s:" % self.username.lower())
+            or body.lower().strip().startswith("%s " % self.username.lower())
+        ):
             command_list = body.split()[1:]
             if len(command_list) == 0:
                 if command == "help":
@@ -280,7 +291,7 @@ class MatrixBot():
                                   (room_id, e))
         self.revokations_rooms_ids = new_revokations_room_ids
 
-    def do_join(self, sender, body):
+    def do_join(self, sender, room_id, body):
         self.logger.debug("do_join")
 
         body_arg_list = body.split()[2:]
@@ -291,13 +302,13 @@ class MatrixBot():
             dry_mode = True
             body_arg_list = body.split()[3:]
         original_room_id = body_arg_list[0]
-        room_id = body_arg_list[0]
+        join_room_id = body_arg_list[0]
 
         try:
-            room_id = self.get_real_room_id(room_id)
+            join_room_id = self.get_real_room_id(join_room_id)
         except Exception, e:
-            msg = '''Room not %s found: %s''' % (room_id, e)
-            self.send_private_message(sender, msg)
+            msg = '''Room not %s found: %s''' % (join_room_id, e)
+            self.send_private_message(sender, msg, room_id)
             self.logger.warning(msg)
             return
 
@@ -313,68 +324,68 @@ class MatrixBot():
         self.logger.debug("Checking if %s is in %s" % (sender, selected_users))
         if sender not in selected_users:
             msg = '''User %s can't join in room %s''' % (sender, original_room_id) + msg_dry_mode
-            self.send_private_message(sender, msg)
+            self.send_private_message(sender, msg, room_id)
             return
 
         try:
             if not dry_mode:
-                res = self.call_api("invite_user", 3, room_id, sender)
+                res = self.call_api("invite_user", 3, join_room_id, sender)
                 if type(res) == dict:
                     msg_ok = '''Invitation sent to user %s to join in %s%s''' % (
                         sender,
                         original_room_id,
                         msg_dry_mode)
-                    self.send_private_message(sender, msg_ok)
+                    self.send_private_message(sender, msg_ok, room_id)
                 else:
                     msg_fail = '''Fail in invitation sent to user %s to join in %s%s: %s''' % (
                         sender,
                         original_room_id,
                         msg_dry_mode,
                         res)
-                    self.send_private_message(sender, msg_fail)
+                    self.send_private_message(sender, msg_fail, room_id)
         except MatrixRequestError, e:
             self.logger.warning(e)
 
-    def do_list_groups(self, sender):
+    def do_list_groups(self, sender, room_id):
         self.logger.debug("do_list_groups")
         vars_ = {}
         vars_["groups"] = ', '.join(self.settings["ldap"]["groups"])
         try:
-            msg_help = '''Groups:
+            msg = '''Groups:
 
 %(groups)s
 ''' % vars_
-            self.send_private_message(sender, msg_help)
+            self.send_private_message(sender, msg, room_id)
         except MatrixRequestError, e:
             self.logger.warning(e)
 
-    def do_list_rooms(self, sender):
+    def do_list_rooms(self, sender, room_id):
         self.logger.debug("do_list_rooms")
-        msg_list = "Room list:\n"
+        msg = "Room list:\n"
         rooms = self.get_rooms()
-        for room_id in rooms:
-
-            aliases = self.get_room_aliases(room_id)
+        for r in rooms:
+            aliases = self.get_room_aliases(r)
             if len(aliases) < 1:
+                self.logger.debug("Room %s hasn't got aliases. Skipping" % (r))
                 continue  # We are looking for rooms with alias
 
-            # res = self.call_api("get_room_members", 3, room_id)
+            # res = self.call_api("get_room_members", 3, r)
             # members_list = res.get('chunk', [])
             # if len(members_list) <= 2:
             #     continue # We are looking for many to many rooms
 
             try:
-                name = self.api.get_room_name(room_id)['name']
+                name = self.api.get_room_name(r)['name']
             except Exception, e:
-                self.logger.debug("Error getting the room name %s: %s" % (room_id, e))
+                self.logger.debug("Error getting the room name %s: %s" % (r, e))
                 name = "No named"
-            msg_list += "* %s - %s\n" % (name, " ".join(aliases))
+            msg += "* %s - %s\n" % (name, " ".join(aliases))
         try:
-            self.send_private_message(sender, msg_list)
+            self.send_private_message(sender, msg, room_id)
         except MatrixRequestError, e:
             self.logger.warning(e)
 
-    def do_list(self, sender, body):
+    def do_list(self, sender, room_id, body):
         self.logger.debug("do_list")
         ldap_settings = self.settings["ldap"]
         body_arg_list = body.split()[2:]
@@ -386,7 +397,7 @@ class MatrixBot():
             for g in groups:
                 msg_list += " %s" % g
             try:
-                self.send_private_message(sender, msg_list)
+                self.send_private_message(sender, msg_list, room_id)
             except MatrixRequestError, e:
                 self.logger.warning(e)
             return
@@ -406,11 +417,11 @@ class MatrixBot():
                 user_id = self.normalize_user_id(body_arg)
                 msg_list = "user: %s" % (user_id)
             try:
-                self.send_private_message(sender, msg_list)
+                self.send_private_message(sender, msg_list, room_id)
             except MatrixRequestError, e:
                 self.logger.warning(e)
 
-    def do_help(self, sender, body):
+    def do_help(self, sender, room_id, body):
         vars_ = self.settings["matrix"].copy()
         vars_["aliases"] = "\n".join(map(lambda x: "%s: " % vars_["username"] + "%s ==> %s" % x,
                                      utils.get_aliases(self.settings).items()))
@@ -432,7 +443,7 @@ Available command aliases:
 
 %(aliases)s
 ''' % vars_
-            self.send_private_message(sender, msg_help)
+            self.send_private_message(sender, msg_help, room_id)
         except MatrixRequestError, e:
             self.logger.warning(e)
 
@@ -501,21 +512,21 @@ Available command aliases:
         sender = event["sender"]
         body = event["content"]["body"]
         body = utils.get_command_alias(body, self.settings)
-        if not body.lower().strip().startswith("%s:" % self.username):
+        if not body.lower().strip().startswith("%s" % self.username):
             return
         if self.is_command(body, "invite"):
             self.do_command("invite_user", sender, room_id, body)
         elif self.is_command(body, "kick"):
             self.do_command("kick_user", sender, room_id, body)
         elif self.is_command(body, "join"):
-            self.do_join(sender, body)
+            self.do_join(sender, room_id, body)
         elif self.is_command(body, "list"):
-            self.do_list(sender, body)
+            self.do_list(sender, room_id, body)
         elif self.is_command(body, "list_rooms"):
-            self.do_list_rooms(sender)
+            self.do_list_rooms(sender, room_id)
         elif self.is_command(body, "list_groups"):
-            self.do_list_groups(sender)
+            self.do_list_groups(sender, room_id)
         elif self.is_command(body, "help"):
-            self.do_help(sender, body)
+            self.do_help(sender, room_id, body)
         else:
-            self.do_help(sender, body)
+            self.do_help(sender, room_id, body)
