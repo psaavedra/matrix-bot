@@ -201,6 +201,12 @@ class MatrixBot():
         room_id = self.call_api("create_room", 3,
                                 None, False,
                                 [user_id])['room_id']
+        self.call_api(
+            "send_message", 
+            3,
+            room_id, 
+            "Hi! Get info about how to interact with me typing: %s help" % self.username
+        )
         return room_id
 
     def is_private_room(self, room_id, user1_id, user2_id):
