@@ -156,9 +156,9 @@ class MatrixBot():
         user_room_id = self.get_private_room_with(user_id)
         if room_id and room_id != user_room_id:
             self.call_api(
-                "send_message", 
+                "send_message",
                 3,
-                room_id, 
+                room_id,
                 "Replying command as PM to %s" % user_id)
         return self.call_api("send_message", 3,
                              user_room_id, message)
