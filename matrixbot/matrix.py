@@ -310,6 +310,16 @@ class MatrixBot():
         original_room_id = body_arg_list[0]
         join_room_id = body_arg_list[0]
 
+        if not join_room_id.endswith(":%s" % self.domain):
+            msg = '''Invalid room id (%s): Join is only for rooms in %s domain''' % (join_room_id, self.domain)
+            self.send_private_message(sender, msg, room_id)
+            return
+
+        if not join_room_id.startswith("#"):
+            msg = '''Invalid room id (%s): Join is only valid using room aliases''' % (join_room_id)
+            self.send_private_message(sender, msg, room_id)
+            return
+
         try:
             join_room_id = self.get_real_room_id(join_room_id)
         except Exception, e:
@@ -369,6 +379,7 @@ class MatrixBot():
         self.logger.debug("do_list_rooms")
         msg = "Room list:\n"
         rooms = self.get_rooms()
+        rooms_msg_list = []
         for r in rooms:
             aliases = self.get_room_aliases(r)
             if len(aliases) < 1:
@@ -385,7 +396,8 @@ class MatrixBot():
             except Exception, e:
                 self.logger.debug("Error getting the room name %s: %s" % (r, e))
                 name = "No named"
-            msg += "* %s - %s\n" % (name, " ".join(aliases))
+            rooms_msg_list.append("* %s - %s" % (name, " ".join(aliases)))
+        msg += "\n".join(sorted(rooms_msg_list))
         try:
             self.send_private_message(sender, msg, room_id)
         except MatrixRequestError, e:
