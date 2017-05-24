@@ -140,7 +140,7 @@ class MatrixBot():
             try:
                 response = method(*args)
                 self.logger.info("Call %s action with: %s" % (action, args))
-                self.logger.info("Call response: %s" % (response))
+                self.logger.debug("Call response: %s" % (response))
                 return response
             except MatrixRequestError, e:
                 self.logger.error("Fail (%s/%s) in call %s action with: %s - %s" % (attempts, max_attempts, action, args, e))
