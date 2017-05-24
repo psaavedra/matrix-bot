@@ -202,9 +202,9 @@ class MatrixBot():
                                 None, False,
                                 [user_id])['room_id']
         self.call_api(
-            "send_message", 
+            "send_message",
             3,
-            room_id, 
+            room_id,
             "Hi! Get info about how to interact with me typing: %s help" % self.username
         )
         return room_id
