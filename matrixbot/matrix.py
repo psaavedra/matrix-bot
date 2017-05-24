@@ -36,6 +36,9 @@ class MatrixBot():
                                                      password=self.password)
         self.api = MatrixHttpApi(self.uri, token=self.token)
 
+        self.rooms = []
+        self.room_aliases = {}
+
     def get_user_id(self, username=None):
         if not username:
             username = self.username
@@ -127,27 +130,64 @@ class MatrixBot():
         return self.call_api("send_message", 3,
                              room_id, message)
 
+    def leave_empty_rooms(self):
+        self.logger.debug("leave_empty_rooms")
+        rooms = self.get_rooms()
+        for room_id in rooms:
+            res = self.call_api("get_room_members", 1,
+                                room_id)
+            try:
+                members_list = res.get('chunk', [])
+            except Exception, e:
+                members_list = []
+                self.logger.debug("Error getting the list of members in room %s: %s" % (room_id, e))
+
+            if len(members_list) > 2:
+                self.logger.debug("Room %s is not a 1-to-1 room" % room_id)
+                continue # We are looking for a 1-to-1 room
+            for r in res.get('chunk', []):
+                if 'user_id' in r and 'membership' in r: 
+                    if r['membership'] == 'leave':
+                        self.call_api("kick_user", 1, room_id, self.get_user_id())
+                        self.call_api("forget", 1, room_id)
+        return room_id
 
     def get_private_room_with(self, user_id):
-        rooms = self.client.get_rooms()
-        for room_id, room in rooms.iteritems():
+        self.leave_empty_rooms()
+        self.logger.debug("get_private_room_with")
+
+        rooms = self.get_rooms()
+        for room_id in rooms:
             res = self.call_api("get_room_members", 3,
                                 room_id)
             me = False
             him = False
-            members_list = res.get('chunk', [])
+            try:
+                members_list = res.get('chunk', [])
+            except Exception, e:
+                members_list = []
+                self.logger.debug("Error getting the list of members in room %s: %s" % (room_id, e))
 
             if len(members_list) != 2:
+                self.logger.debug("Room %s is not a 1-to-1 room" % room_id)
                 continue # We are looking for a 1-to-1 room
             for r in res.get('chunk', []):
-                if 'user_id' in r and 'membership' in r: 
-                    if r['user_id'] == user_id and r['membership'] == 'join':
+        
+                self.logger.debug("r")
+                self.logger.debug(r)
+                if 'state_key' in r and 'membership' in r: 
+                    self.logger.debug(r['state_key'])
+                    self.logger.debug(r['membership'])
+                    if r['state_key'] == user_id and r['membership'] == 'invite':
                         him = True
-                    if r['user_id'] == self.get_user_id() and r['membership'] == 'join':
+                    if r['state_key'] == user_id and r['membership'] == 'join':
+                        him = True
+                    if r['state_key'] == self.get_user_id() and r['membership'] == 'join':
                         me = True                   
                     if me and him:
                         self.logger.debug("me and him")
                         return room_id
+
         # No room found
         room_id = self.call_api("create_room", 3,
                                 None, False,
@@ -207,7 +247,47 @@ class MatrixBot():
                                   (room_id, e))
         self.revokations_rooms_ids = new_revokations_room_ids
 
-    def do_list(self, sender, room_id, body):
+    def do_list_groups(self, sender):
+        self.logger.debug("do_list_groups")
+        vars_ = {}
+        vars_["groups"] = ', '.join(self.settings["ldap"]["groups"])
+        try:
+            msg_help = '''Groups:
+
+%(groups)s
+''' % vars_
+            self.send_private_message(sender, msg_help)
+        except MatrixRequestError, e:
+            self.logger.warning(e)
+
+    def do_list_rooms(self, sender):
+        self.logger.debug("do_list_rooms")
+        msg_list = "Room list:\n"
+        rooms = self.get_rooms()
+        for room_id in rooms:
+
+            aliases = self.get_room_aliases(room_id)
+            if len(aliases) < 1:
+                continue # We are looking for rooms with alias
+ 
+            res = self.call_api("get_room_members", 3, room_id)
+            members_list = res.get('chunk', [])
+
+            if len(members_list) <= 2:
+                continue # We are looking for many to many rooms
+ 
+            try:
+                name = self.api.get_room_name(room_id)['name']
+            except Exception, e:
+                self.logger.debug("Error getting the room name %s: %s" % (room_id, e))
+                name = "No named"
+            msg_list += "* %s - %s\n" % (name, " ".join(aliases))
+        try:
+            self.send_private_message(sender, msg_list)
+        except MatrixRequestError, e:
+            self.logger.warning(e)
+
+    def do_list(self, sender, body):
         self.logger.debug("do_list")
         ldap_settings = self.settings["ldap"]
         body_arg_list = body.split()[2:]
@@ -243,31 +323,59 @@ class MatrixBot():
             except MatrixRequestError, e:
                 self.logger.warning(e)
 
-    def do_help(self, sender, room_id, body):
+    def do_help(self, sender, body):
         vars_ = self.settings["matrix"].copy()
-        vars_["groups"] = ', '.join(self.settings["ldap"]["groups"])
         vars_["aliases"] = "\n".join(map(lambda x: "%s: " % vars_["username"] + "%s ==> %s" % x,
                                      utils.get_aliases(self.settings).items()))
         try:
             self.logger.debug("do_help")
             msg_help = '''Examples:
 %(username)s: help
-%(username)s: invite  [dryrun] (@user|+group) ... [ but (@user|+group) ]
-%(username)s: kick    [dryrun] (@user|+group) ... [ but (@user|+group) ]
-%(username)s: list    [+group]
-
+%(username)s: help extra
+%(username)s: invite [dryrun] (@user|+group) ... [ but (@user|+group) ]
+%(username)s: kick [dryrun] (@user|+group) ... [ but (@user|+group) ]
+%(username)s: list [+group]
+%(username)s: list_rooms
+%(username)s: list_groups
+''' % vars_
+            if body.find("extra") >= 0:
+                msg_help += '''
 Available command aliases:
 
 %(aliases)s
-
-Available groups: %(groups)s
 ''' % vars_
             self.send_private_message(sender, msg_help)
         except MatrixRequestError, e:
             self.logger.warning(e)
 
+    def _set_rooms(self, response_dict):
+        new_room_list = []
+        for rooms_types in response_dict['rooms'].keys():
+            for room_id in response_dict['rooms'][rooms_types].keys():
+                new_room_list.append(room_id)
+                
+                self._set_room_aliases(room_id, response_dict['rooms'][rooms_types][room_id])
+        self.rooms = new_room_list
+
+    def _set_room_aliases(self, room_id, room_dict):
+        try:
+            aliases = []
+            for e in room_dict['state']['events']:
+                if e['type'] == 'm.room.aliases':        
+                    aliases = e['content']['aliases']
+            self.room_aliases[room_id] = aliases
+        except Exception:
+            pass
+
+    def get_rooms(self):
+        return self.rooms
+
+    def get_room_aliases(self, room_id):
+        return self.room_aliases[room_id] if room_id in self.room_aliases else []
+
     def sync(self, ignore=False, timeout_ms=30000):
-        response = self.api.sync(self.sync_token, timeout_ms)
+        response = self.api.sync(self.sync_token, timeout_ms, full_state='true')
+        self._set_rooms(response)
         self.sync_token = response["next_batch"]
         self.logger.info("!!! sync_token: %s" % (self.sync_token))
         self.logger.debug("Sync response: %s" % (response))
@@ -304,8 +412,12 @@ Available groups: %(groups)s
                         elif self.is_command(body, "kick"):
                             self.do_command("kick_user", sender, room_id, body)
                         elif self.is_command(body, "list"):
-                            self.do_list(sender, room_id, body)
+                            self.do_list(sender, body)
+                        elif self.is_command(body, "list_rooms"):
+                            self.do_list_rooms(sender)
+                        elif self.is_command(body, "list_groups"):
+                            self.do_list_groups(sender)
                         elif self.is_command(body, "help"):
-                            self.do_help(sender, room_id, body)
+                            self.do_help(sender, body)
                         else:
                             self.do_help(sender, room_id, body)
