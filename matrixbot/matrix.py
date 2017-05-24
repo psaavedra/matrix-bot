@@ -328,8 +328,6 @@ class MatrixBot():
             self.logger.warning(msg)
             return
 
-        # TODO: check domain is local
-
         allowed_users = self.default_allowed_join_rooms
         original_room_name = original_room_id.split(":")[0]
         if (original_room_name in self.allowed_join_rooms_ids):
