@@ -416,39 +416,26 @@ class MatrixBot():
 
     def do_list(self, sender, room_id, body):
         self.logger.debug("do_list")
-        ldap_settings = self.settings["ldap"]
         body_arg_list = body.split()[2:]
-        msg_list = ""
+        selected_users = self._get_selected_users(body_arg_list)
+        msg_list = " ".join(
+                            map(lambda x: self.normalize_user_id(x), 
+                            selected_users)
+                           )
+        try:
+            self.send_private_message(sender, msg_list, room_id)
+        except MatrixRequestError, e:
+            self.logger.warning(e)
 
-        if len(body_arg_list) == 0:
-            msg_list = "groups:"
-            groups = bot_ldap.get_groups(ldap_settings)
-            for g in groups:
-                msg_list += " %s" % g
-            try:
-                self.send_private_message(sender, msg_list, room_id)
-            except MatrixRequestError, e:
-                self.logger.warning(e)
-            return
-
-        groups_members = bot_ldap.get_ldap_groups_members(ldap_settings)
-        for body_arg in body_arg_list:
-            if body_arg.startswith("+"):
-                group_name = body_arg[1:]
-                if group_name in groups_members.keys():
-                    msg_list = "group %s members:" % group_name
-                    for group_member in groups_members[group_name]:
-                        user_id = self.normalize_user_id(group_member)
-                        msg_list += " %s" % user_id
-                else:
-                    msg_list = "group %s not found" % group_name
-            else:
-                user_id = self.normalize_user_id(body_arg)
-                msg_list = "user: %s" % (user_id)
-            try:
-                self.send_private_message(sender, msg_list, room_id)
-            except MatrixRequestError, e:
-                self.logger.warning(e)
+    def do_count(self, sender, room_id, body):
+        self.logger.debug("do_count")
+        body_arg_list = body.split()[2:]
+        selected_users = self._get_selected_users(body_arg_list)
+        msg_list = "Count: %s" % len(selected_users)
+        try:
+            self.send_private_message(sender, msg_list, room_id)
+        except MatrixRequestError, e:
+            self.logger.warning(e)
 
     def do_help(self, sender, room_id, body):
         vars_ = self.settings["matrix"].copy()
@@ -462,7 +449,8 @@ class MatrixBot():
 %(username)s: join <room_id>
 %(username)s: invite [dryrun] [<room_id>] (@user|+group) ... [ but (@user|+group) ]
 %(username)s: kick [dryrun] [<room_id>] (@user|+group) ... [ but (@user|+group) ]
-%(username)s: list [+group]
+%(username)s: count [ (@user|+group) ... [ but (@user|+group) ] ]
+%(username)s: list [ (@user|+group) ... [ but (@user|+group) ] ]
 %(username)s: list-rooms
 %(username)s: list-groups
 ''' % vars_
@@ -549,6 +537,8 @@ Available command aliases:
             self.do_command("kick_user", sender, room_id, body)
         elif self.is_command(body, "join"):
             self.do_join(sender, room_id, body)
+        elif self.is_command(body, "count"):
+            self.do_count(sender, room_id, body) 
         elif self.is_command(body, "list"):
             self.do_list(sender, room_id, body)
         elif self.is_command(body, "list-rooms"):
