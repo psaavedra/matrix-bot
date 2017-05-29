@@ -94,9 +94,22 @@ class MatrixBot():
     def do_command(self, action, sender, room_id, body, attempts=3):
         body_arg_list = body.split()[2:]
         dry_mode = False
-        if len(body_arg_list) > 0 and body_arg_list[0] == "dryrun":
+        if (
+            len(body_arg_list) > 0 and 
+            body_arg_list[0] == "dryrun"
+        ):
             dry_mode = True
             body_arg_list = body.split()[3:]
+        target_room_id = room_id
+        if (
+            len(body_arg_list) > 0 and 
+            (
+                body_arg_list[0].startswith('!') or
+                body_arg_list[0].startswith('#')
+            )
+        ):
+            target_room_id = self.get_real_room_id(body_arg_list[0]) 
+            body_arg_list = body_arg_list[1:]
 
         selected_users = self._get_selected_users(body_arg_list)
 
@@ -105,7 +118,7 @@ class MatrixBot():
                 sender,
                 "Simulated '%s' action in room '%s' over: %s" % (
                     action,
-                    room_id,
+                    target_room_id,
                     " ".join(selected_users)),
                 room_id)
         else:
@@ -117,7 +130,7 @@ class MatrixBot():
                             room_id,
                             user,
                             dry_mode))
-                    self.call_api(action, attempts, room_id, user)
+                    self.call_api(action, attempts, target_room_id, user)
             else:
                 self.send_private_message(sender,
                                           "No users found",
@@ -447,11 +460,11 @@ class MatrixBot():
 %(username)s: help
 %(username)s: help extra
 %(username)s: join <room_id>
-%(username)s: invite [dryrun] (@user|+group) ... [ but (@user|+group) ]
-%(username)s: kick [dryrun] (@user|+group) ... [ but (@user|+group) ]
+%(username)s: invite [dryrun] [<room_id>] (@user|+group) ... [ but (@user|+group) ]
+%(username)s: kick [dryrun] [<room_id>] (@user|+group) ... [ but (@user|+group) ]
 %(username)s: list [+group]
-%(username)s: list_rooms
-%(username)s: list_groups
+%(username)s: list-rooms
+%(username)s: list-groups
 ''' % vars_
             if body.find("extra") >= 0:
                 msg_help += '''
@@ -538,9 +551,9 @@ Available command aliases:
             self.do_join(sender, room_id, body)
         elif self.is_command(body, "list"):
             self.do_list(sender, room_id, body)
-        elif self.is_command(body, "list_rooms"):
+        elif self.is_command(body, "list-rooms"):
             self.do_list_rooms(sender, room_id)
-        elif self.is_command(body, "list_groups"):
+        elif self.is_command(body, "list-groups"):
             self.do_list_groups(sender, room_id)
         elif self.is_command(body, "help"):
             self.do_help(sender, room_id, body)
