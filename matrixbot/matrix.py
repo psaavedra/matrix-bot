@@ -375,13 +375,9 @@ class MatrixBot():
 
     def do_list_groups(self, sender, room_id):
         self.logger.debug("do_list_groups")
-        vars_ = {}
-        vars_["groups"] = ', '.join(self.settings["ldap"]["groups"])
+        groups = ', '.join(map(lambda x: "+%s" % x,self.settings["ldap"]["groups"]))
         try:
-            msg = '''Groups:
-
-%(groups)s
-''' % vars_
+            msg = "Groups: %s" % groups
             self.send_private_message(sender, msg, room_id)
         except MatrixRequestError, e:
             self.logger.warning(e)
@@ -396,12 +392,6 @@ class MatrixBot():
             if len(aliases) < 1:
                 self.logger.debug("Room %s hasn't got aliases. Skipping" % (r))
                 continue  # We are looking for rooms with alias
-
-            # res = self.call_api("get_room_members", 3, r)
-            # members_list = res.get('chunk', [])
-            # if len(members_list) <= 2:
-            #     continue # We are looking for many to many rooms
-
             try:
                 name = self.api.get_room_name(r)['name']
             except Exception, e:
