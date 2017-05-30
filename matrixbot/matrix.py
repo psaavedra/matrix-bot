@@ -124,7 +124,7 @@ class MatrixBot():
         else:
             if len(selected_users) > 0:
                 for user in selected_users:
-                    self.logger.debug(
+                    self.logger.info(
                         " do_command (%s,%s,%s,dry_mode=%s)" % (
                             action,
                             room_id,
@@ -358,6 +358,10 @@ class MatrixBot():
 
         try:
             if not dry_mode:
+                self.logger.info(
+                        " do_join (%s,%s)" % (
+                            join_room_id,
+                            ender))
                 res = self.call_api("invite_user", 3, join_room_id, sender)
                 if type(res) == dict:
                     msg_ok = '''Invitation sent to user %s to join in %s%s''' % (
@@ -507,7 +511,7 @@ Available command aliases:
 
     def sync_joins(self, join_events):
         for room_id, sync_room in join_events.items():
-            self.logger.info(">>> (join) %s" % (room_id))
+            self.logger.debug(">>> (join) %s" % (room_id))
             for event in sync_room["timeline"]["events"]:
                 self._process_event(room_id, event)
 

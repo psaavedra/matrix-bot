@@ -87,7 +87,6 @@ def get_ldap_groups_members(ldap_settings):
     # pending groups to get members. filters for those groups are explicitelly
     # defined in the settings
     custom_groups = filter((lambda x: x not in groups), ldap_groups)
-    logger.error("custom_groups: %s", custom_groups)
     for g in custom_groups:
         res[g] = get_custom_ldap_group_members(ldap_settings, g)
     return res
