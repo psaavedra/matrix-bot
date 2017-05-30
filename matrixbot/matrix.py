@@ -138,13 +138,15 @@ class MatrixBot():
 
     def invite_subscriptions(self):
         for room_id in self.subscriptions_room_ids:
+            sender_id = self.username
             body = "bender: invite " + self.settings["subscriptions"][room_id]
-            self.do_command("invite_user", room_id, body, attempts=1)
+            self.do_command("invite_user", sender_id, room_id, body, attempts=1)
 
     def kick_revokations(self):
         for room_id in self.revokations_rooms_ids:
+            sender_id = self.username
             body = "bender: kick " + self.settings["revokations"][room_id]
-            self.do_command("kick_user", room_id, body, attempts=1)
+            self.do_command("kick_user", sender_id, room_id, body, attempts=1)
 
     def call_api(self, action, max_attempts, *args):
         method = getattr(self.api, action)
