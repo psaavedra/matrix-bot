@@ -5,7 +5,6 @@
 # Maintainer: Pablo Saavedra
 # Contact: saavedra.pablo at gmail.com
 
-import getconf
 import sys
 import logging
 import copy
@@ -52,6 +51,7 @@ def debug_conffile(settings, logger):
             value = settings[s][k]
             logger.debug("Configuration setting - %s: %s" % (key, value))
 
+
 def setup(conffile, settings):
     try:
         reload(sys)
@@ -61,6 +61,7 @@ def setup(conffile, settings):
     except Exception:
         pass
     execfile(conffile)
+
 
 def create_logger(settings):
     hdlr = logging.FileHandler(settings["DEFAULT"]["logfile"])
