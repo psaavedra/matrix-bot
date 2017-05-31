@@ -359,9 +359,11 @@ class MatrixBot():
         try:
             if not dry_mode:
                 self.logger.info(
-                        " do_join (%s,%s)" % (
-                            join_room_id,
-                            ender))
+                    "do_join (%s,%s)" % (
+                        join_room_id,
+                        sender
+                    )
+                )
                 res = self.call_api("invite_user", 3, join_room_id, sender)
                 if type(res) == dict:
                     msg_ok = '''Invitation sent to user %s to join in %s%s''' % (
