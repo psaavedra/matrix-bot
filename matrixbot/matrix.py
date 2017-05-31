@@ -28,9 +28,9 @@ class MatrixBot():
         self.room_ids = settings["matrix"]["rooms"]
         self.domain = self.settings["matrix"]["domain"]
 
-        self.subscriptions_room_ids = settings["subscriptions"]["rooms"]
-        self.revokations_rooms_ids = settings["revokations"]["rooms"]
-        self.allowed_join_rooms_ids = settings["allowed-join"]["rooms"]
+        self.subscriptions_room_ids = settings["subscriptions"].keys()
+        self.revokations_rooms_ids = settings["revokations"].keys()
+        self.allowed_join_rooms_ids = filter(lambda x: x != 'default', settings["allowed-join"].keys())
         self.default_allowed_join_rooms = settings["allowed-join"]["default"]
 
         self.client = MatrixClient(self.uri)

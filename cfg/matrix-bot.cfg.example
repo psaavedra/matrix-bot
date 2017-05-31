@@ -1,40 +1,36 @@
-[DEFAULT]
-loglevel:10
-logfile:/dev/stdout
-period:10
-
-[matrix]
-uri:https://matrix.org
-username:username
-password:password
-rooms:#room_alias:matrix.org,
-domain:matrix.org
-
-[ldap]
-server:ldap://ldap.local
-base:ou=People,dc=example,dc=com
-groups:group1,group2,persons
-groups_base:ou=Group,dc=example,dc=com
-groups_filter:(objectClass=posixGroup)
-groups_id:cn
-persons:(objectClass=person)
-
-[aliases]
-aliases:simple_invite,simple_kick
-simple_invite:invite +group1 +group2
-simple_kick:invite +group1 +group2
-
-[subscriptions]
-rooms:#room_alias1,#room_alias2
-room-#room_alias1:@user1 @user2 but @user3
-room-#room_alias2:+group1 +group2 but @user1
-
-[revokations]
-rooms:#room_alias1,#room_alias2
-room-#room_alias1:@user1 @user2 but @user3
-room-#room_alias2:+group1 +group2 but @user1
-
-[allowed-join]
-default:+group1 +group2 but @user1
-rooms:#room_alias1
-room-#room_alias1:+group1 +group2
+settings["DEFAULT"] = {
+  "loglevel": 10,
+  "logfile": "/dev/stdout",
+  "period": 30,
+}
+settings["matrix"] = {
+  "uri": "http://localhost:8000",
+  "username": "username",
+  "password": "password",
+  "domain": "matrix.org",
+  "rooms": []
+}
+settings["ldap"] = {
+  "server": "ldap://ldap.local",
+  "base": "ou=People,dc=example,dc=com",
+  "groups": [],
+  "groups_id": "cn",
+  "groups_filter": "(objectClass=posixGroup)",
+  "groups_base": "ou=Group,dc=example,dc=com",
+}
+settings["aliases"] = {
+  "simple_invite":"invite +group1 +group2",
+  "simple_kick":"invite +group1 +group2",
+}
+settings["subscriptions"] = {
+  "#room_alias1":"@user1 @user2 but @user3",
+  "#room_alias2":"+group1 +group2 but @user1",
+}
+settings["revokations"] = {
+  "#room_alias1":"@user1 @user2 but @user3",
+  "#room_alias2":"+group1 +group2 but @user1",
+}
+settings["allowed-join"] = {
+  "default": "+group1 +group2 but @user1",
+  "#room_alias1": "+group1 +group2",
+}
