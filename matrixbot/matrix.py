@@ -95,20 +95,20 @@ class MatrixBot():
         body_arg_list = body.split()[2:]
         dry_mode = False
         if (
-            len(body_arg_list) > 0 and 
+            len(body_arg_list) > 0 and
             body_arg_list[0] == "dryrun"
         ):
             dry_mode = True
             body_arg_list = body.split()[3:]
         target_room_id = room_id
         if (
-            len(body_arg_list) > 0 and 
+            len(body_arg_list) > 0 and
             (
                 body_arg_list[0].startswith('!') or
                 body_arg_list[0].startswith('#')
             )
         ):
-            target_room_id = self.get_real_room_id(body_arg_list[0]) 
+            target_room_id = self.get_real_room_id(body_arg_list[0])
             body_arg_list = body_arg_list[1:]
 
         selected_users = self._get_selected_users(body_arg_list)
@@ -124,7 +124,7 @@ class MatrixBot():
         else:
             if len(selected_users) > 0:
                 for user in selected_users:
-                    self.logger.debug(
+                    self.logger.info(
                         " do_command (%s,%s,%s,dry_mode=%s)" % (
                             action,
                             room_id,
@@ -138,13 +138,15 @@ class MatrixBot():
 
     def invite_subscriptions(self):
         for room_id in self.subscriptions_room_ids:
+            sender_id = self.username
             body = "bender: invite " + self.settings["subscriptions"][room_id]
-            self.do_command("invite_user", room_id, body, attempts=1)
+            self.do_command("invite_user", sender_id, room_id, body, attempts=1)
 
     def kick_revokations(self):
         for room_id in self.revokations_rooms_ids:
+            sender_id = self.username
             body = "bender: kick " + self.settings["revokations"][room_id]
-            self.do_command("kick_user", room_id, body, attempts=1)
+            self.do_command("kick_user", sender_id, room_id, body, attempts=1)
 
     def call_api(self, action, max_attempts, *args):
         method = getattr(self.api, action)
@@ -356,6 +358,12 @@ class MatrixBot():
 
         try:
             if not dry_mode:
+                self.logger.info(
+                    "do_join (%s,%s)" % (
+                        join_room_id,
+                        sender
+                    )
+                )
                 res = self.call_api("invite_user", 3, join_room_id, sender)
                 if type(res) == dict:
                     msg_ok = '''Invitation sent to user %s to join in %s%s''' % (
@@ -375,7 +383,10 @@ class MatrixBot():
 
     def do_list_groups(self, sender, room_id):
         self.logger.debug("do_list_groups")
-        groups = ', '.join(map(lambda x: "+%s" % x,self.settings["ldap"]["groups"]))
+        groups = ', '.join(map(
+            lambda x: "+%s" % x,
+            self.settings["ldap"]["groups"]
+        ))
         try:
             msg = "Groups: %s" % groups
             self.send_private_message(sender, msg, room_id)
@@ -409,9 +420,8 @@ class MatrixBot():
         body_arg_list = body.split()[2:]
         selected_users = self._get_selected_users(body_arg_list)
         msg_list = " ".join(
-                            map(lambda x: self.normalize_user_id(x), 
-                            selected_users)
-                           )
+            map(lambda x: self.normalize_user_id(x), selected_users)
+        )
         try:
             self.send_private_message(sender, msg_list, room_id)
         except MatrixRequestError, e:
@@ -503,7 +513,7 @@ Available command aliases:
 
     def sync_joins(self, join_events):
         for room_id, sync_room in join_events.items():
-            self.logger.info(">>> (join) %s" % (room_id))
+            self.logger.debug(">>> (join) %s" % (room_id))
             for event in sync_room["timeline"]["events"]:
                 self._process_event(room_id, event)
 
@@ -528,7 +538,7 @@ Available command aliases:
         elif self.is_command(body, "join"):
             self.do_join(sender, room_id, body)
         elif self.is_command(body, "count"):
-            self.do_count(sender, room_id, body) 
+            self.do_count(sender, room_id, body)
         elif self.is_command(body, "list"):
             self.do_list(sender, room_id, body)
         elif self.is_command(body, "list-rooms"):
