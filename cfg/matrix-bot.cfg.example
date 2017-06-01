@@ -17,6 +17,9 @@ settings["ldap"] = {
   "groups_id": "cn",
   "groups_filter": "(objectClass=posixGroup)",
   "groups_base": "ou=Group,dc=example,dc=com",
+  "users_aliases": {
+      "user1":"username1",
+  },
 }
 settings["aliases"] = {
   "simple_invite":"invite +group1 +group2",
