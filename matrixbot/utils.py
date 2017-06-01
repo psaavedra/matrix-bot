@@ -32,6 +32,7 @@ def get_default_settings():
         "groups_id": "cn",
         "groups_filter": "(objectClass=posixGroup)",
         "groups_base": "ou=Group,dc=example,dc=com",
+        "users_aliases": {},
     }
     settings["aliases"] = {
     }
