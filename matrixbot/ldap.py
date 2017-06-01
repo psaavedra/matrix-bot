@@ -77,22 +77,20 @@ the settings
 
 
 def get_ldap_groups_members(ldap_settings):
-    def map_aliases (x):
-        return ldap_settings['users_aliases'].get(x,x)
+    def map_aliases(x):
+        return ldap_settings['users_aliases'].get(x, x)
 
-    logger = utils.get_logger()
     ldap_groups = ldap_settings["groups"]
     groups = get_ldap_groups(ldap_settings)
     res = {}
     for g in groups:
-        res[g] = map(map_aliases,get_ldap_group_members(ldap_settings, g))
+        res[g] = map(map_aliases, get_ldap_group_members(ldap_settings, g))
 
     # pending groups to get members. filters for those groups are explicitelly
     # defined in the settings
     custom_groups = filter((lambda x: x not in groups), ldap_groups)
     for g in custom_groups:
         res[g] = map(map_aliases, get_custom_ldap_group_members(ldap_settings, g))
-    
     return res
 
 
