@@ -19,6 +19,8 @@ class MatrixBot():
         self.sync_token = None
 
         self.logger = utils.get_logger()
+        self.cache = utils.create_cache(settings)
+        self.cache_timeout = int(settings["memcached"]["timeout"])
 
         self.settings = settings
         self.period = settings["DEFAULT"]["period"]
@@ -90,6 +92,17 @@ class MatrixBot():
         if room_id.startswith("#"):
             room_id = self.api.get_room_id(room_id)
         return room_id
+
+    def get_room_members(self, room_id):
+        key = "get_room_members-%s" % room_id
+        res = self.cache.get(key)
+        if res:
+            self.logger.debug("get_room_members (cached): %s" % (key))
+            return res
+        res = self.call_api("get_room_members", 2, room_id)
+        self.cache.set(key, res, self.cache_timeout)
+        self.logger.debug("get_room_members (non cached): %s" % (key))
+        return res
 
     def do_command(self, action, sender, room_id, body, attempts=3):
         body_arg_list = body.split()[2:]
@@ -182,8 +195,7 @@ class MatrixBot():
         self.logger.debug("leave_empty_rooms")
         rooms = self.get_rooms()
         for room_id in rooms:
-            res = self.call_api("get_room_members", 1,
-                                room_id)
+            res = self.get_room_members(room_id)
             try:
                 members_list = res.get('chunk', [])
             except Exception, e:
@@ -228,7 +240,7 @@ class MatrixBot():
         me = False  # me is true if the user1_id is in the room
         him = False  # him is true if the user2_id join or is already
 
-        res = self.call_api("get_room_members", 3, room_id)
+        res = self.get_room_members(room_id)
         try:
             members_list = res.get('chunk', [])
         except Exception, e:

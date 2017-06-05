@@ -10,6 +10,11 @@ settings["matrix"] = {
   "domain": "matrix.org",
   "rooms": []
 }
+settings["memcached"] = {
+    "ip": "127.0.0.1",
+    "port": 11211,
+    "timeout": 300,
+}
 settings["ldap"] = {
   "server": "ldap://ldap.local",
   "base": "ou=People,dc=example,dc=com",

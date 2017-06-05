@@ -8,7 +8,7 @@
 import sys
 import logging
 import copy
-
+import memcache
 
 def get_default_settings():
     settings = {}
@@ -16,6 +16,11 @@ def get_default_settings():
         "loglevel": 10,
         "logfile": "/dev/stdout",
         "period": 30,
+    }
+    settings["memcached"] = {
+        "ip": "127.0.0.1",
+        "port": 11211,
+        "timeout": 300,
     }
     settings["matrix"] = {
         "uri": "http://localhost:8000",
@@ -63,6 +68,10 @@ def setup(conffile, settings):
         pass
     execfile(conffile)
 
+
+def create_cache(settings):
+    cache = memcache.Client(['%(ip)s:%(port)s' % settings["memcached"]], debug=0)
+    return cache
 
 def create_logger(settings):
     hdlr = logging.FileHandler(settings["DEFAULT"]["logfile"])

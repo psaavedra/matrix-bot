@@ -54,6 +54,7 @@ setup(
         "getconf",
         "matrix-client>=0.0.6",
         "python-ldap",
+        "python-memcached",
     ],
     data_files=[
         ('/usr/share/doc/matrix-bot/',
