@@ -201,7 +201,6 @@ class MatrixBot():
                             self.call_api("forget_room", 1, room_id)
                         except Exception, e:
                             self.logger.warning("Some kind of error during the forget_room action: %s" % (e))
-        return room_id
 
     def get_private_room_with(self, user_id):
         self.leave_empty_rooms()
