@@ -105,6 +105,8 @@ class MatrixBot():
         return res
 
     def do_command(self, action, sender, room_id, body, attempts=3):
+        if sender:
+            sender = self.normalize_user_id(sender)
         body_arg_list = body.split()[2:]
         dry_mode = False
         if (
@@ -126,7 +128,7 @@ class MatrixBot():
 
         selected_users = self._get_selected_users(body_arg_list)
 
-        if dry_mode:
+        if dry_mode and sender:
             self.send_private_message(
                 sender,
                 "Simulated '%s' action in room '%s' over: %s" % (
@@ -144,22 +146,20 @@ class MatrixBot():
                             user,
                             dry_mode))
                     self.call_api(action, attempts, target_room_id, user)
-            else:
+            elif sender:
                 self.send_private_message(sender,
                                           "No users found",
                                           room_id)
 
     def invite_subscriptions(self):
         for room_id in self.subscriptions_room_ids:
-            sender_id = self.username
             body = "bender: invite " + self.settings["subscriptions"][room_id]
-            self.do_command("invite_user", sender_id, room_id, body, attempts=1)
+            self.do_command("invite_user", None, room_id, body, attempts=1)
 
     def kick_revokations(self):
         for room_id in self.revokations_rooms_ids:
-            sender_id = self.username
             body = "bender: kick " + self.settings["revokations"][room_id]
-            self.do_command("kick_user", sender_id, room_id, body, attempts=1)
+            self.do_command("kick_user", None, room_id, body, attempts=1)
 
     def call_api(self, action, max_attempts, *args):
         method = getattr(self.api, action)
