@@ -42,3 +42,21 @@ settings["allowed-join"] = {
   "default": "+group1 +group2 but @user1",
   "#room_alias1": "+group1 +group2",
 }
+
+
+# plugin_trac={}
+# plugin_trac["module"] = "matrixbot.plugins.trac"
+# plugin_trac["class"] = "TracPlugin"
+# plugin_trac["settings"] = {
+#     "rooms": ["!room_id"],
+#     "url_protocol": "https", 
+#     "url_domain": "trac", 
+#     "url_path": "/tracker", 
+#     "url_auth_user": "user", 
+#     "url_auth_password": "password",
+#     "status": ['new', 'reopened', 'closed'],
+# } 
+# 
+# settings["plugins"] = {
+#     "plugin_trac": plugin_trac,
+# }

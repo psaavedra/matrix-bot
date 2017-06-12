@@ -47,6 +47,7 @@ def get_default_settings():
     settings["allowed-join"] = {
         "default": ""
     }
+    settings["plugins"] = {}
     return settings
 
 

@@ -42,6 +42,11 @@ class MatrixBot():
 
         self.rooms = []
         self.room_aliases = {}
+        self.plugins = []
+        for plugin in settings['plugins'].itervalues():
+            mod = __import__(plugin['module'], fromlist=[plugin['class']])
+            klass = getattr(mod, plugin['class'])
+            self.plugins.append(klass(plugin['settings']))
 
     def _get_selected_users(self, groups_users_list):
         def _add_or_remove_user(users, username, append):
@@ -509,6 +514,9 @@ Available command aliases:
         if not ignore:
             self.sync_invitations(response['rooms']['invite'])
             self.sync_joins(response['rooms']['join'])
+        #TODO: async to plugins
+        for plugin in self.plugins:
+            plugin.async(self.send_message)
         time.sleep(self.period)
 
     def sync_invitations(self, invite_events):
@@ -560,3 +568,10 @@ Available command aliases:
             self.do_help(sender, room_id, body)
         else:
             self.do_help(sender, room_id, body)
+
+        #TODO: push to plugins
+        for plugin in self.plugins:
+            plugin.command(
+                sender, room_id, body,
+                self.send_message
+            )
