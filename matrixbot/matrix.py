@@ -277,12 +277,19 @@ class MatrixBot():
                     return True
         return False
 
-    def is_command(self, body, command="command_name"):
-        res = False
+    def is_explicit_call(self, body):
         if (
             body.lower().strip().startswith("%s:" % self.username.lower())
             or body.lower().strip().startswith("%s " % self.username.lower())
         ):
+            return True
+        res = False
+        self.logger.debug("is_explicit_call: %s" % res)
+        return res
+
+    def is_command(self, body, command="command_name"):
+        res = False
+        if self.is_explicit_call(body):
             command_list = body.split()[1:]
             if len(command_list) == 0:
                 if command == "help":
@@ -557,10 +564,13 @@ Available command aliases:
         sender = event["sender"]
         body = event["content"]["body"]
 
+        if sender == self.get_user_id():
+            return
+
         is_pm = self.is_private_room(room_id, self.get_user_id())
 
-        if is_pm:
-            body = "%s:" % self.username.lower() + body
+        if is_pm and not self.is_explicit_call(body):
+            body = "%s: " % self.username.lower() + body
 
         body = utils.get_command_alias(body, self.settings)
         if not body.lower().strip().startswith("%s" % self.username):
