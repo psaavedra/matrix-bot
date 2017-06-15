@@ -150,7 +150,14 @@ class MatrixBot():
                             room_id,
                             user,
                             dry_mode))
-                    self.call_api(action, attempts, target_room_id, user)
+                    res = self.call_api(action, attempts, target_room_id, user)
+                if sender:
+                    msg = '''Action '%s' in room %s over %s''' % (
+                        action,
+                        room_id,
+                        " ".join(selected_users)
+                    )
+                    self.send_private_message(sender, msg, room_id)
             elif sender:
                 self.send_private_message(sender,
                                           "No users found",
@@ -228,7 +235,7 @@ class MatrixBot():
             if self.is_private_room(room_id, self.get_user_id(), user_id):
                 return room_id
 
-        # Not room found
+        # Not room found then ...
         room_id = self.call_api("create_room", 3,
                                 None, False,
                                 [user_id])['room_id']
