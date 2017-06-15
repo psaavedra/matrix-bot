@@ -78,7 +78,7 @@ the settings
 
 def get_ldap_groups_members(ldap_settings):
     def map_aliases(x):
-        return ldap_settings['users_aliases'].get(x, x)
+        return ldap_settings.get('users_aliases', {}).get(x, x)
 
     ldap_groups = ldap_settings["groups"]
     groups = get_ldap_groups(ldap_settings)
