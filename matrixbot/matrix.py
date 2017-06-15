@@ -240,7 +240,7 @@ class MatrixBot():
         )
         return room_id
 
-    def is_private_room(self, room_id, user1_id, user2_id):
+    def is_private_room(self, room_id, user1_id, user2_id=None):
         me = False  # me is true if the user1_id is in the room
         him = False  # him is true if the user2_id join or is already
 
@@ -255,6 +255,10 @@ class MatrixBot():
         if len(members_list) != 2:
             self.logger.debug("Room %s is not a 1-to-1 room" % room_id)
             return False  # We are looking for a 1-to-1 room
+
+        if not user2_id:
+            self.logger.debug("Room %s is a 1-to-1 with the user %s" % (room_id, user1_id))
+            return True  # I just check if the room is 1-to-1 for user1_id
 
         for r in res.get('chunk', []):
             if 'state_key' in r and 'membership' in r:
@@ -453,22 +457,27 @@ class MatrixBot():
         except MatrixRequestError, e:
             self.logger.warning(e)
 
-    def do_help(self, sender, room_id, body):
+    def do_help(self, sender, room_id, body, pm=False):
         vars_ = self.settings["matrix"].copy()
+        if pm:
+            vars_["prefix"] = ""
+        else:
+            vars_["prefix"] = "%(username)s: " % vars_
+
         vars_["aliases"] = "\n".join(map(lambda x: "%s: " % vars_["username"] + "%s ==> %s" % x,
                                      utils.get_aliases(self.settings).items()))
         try:
             self.logger.debug("do_help")
             msg_help = '''Examples:
-%(username)s: help
-%(username)s: help extra
-%(username)s: join <room_id>
-%(username)s: invite [dryrun] [<room_id>] (@user|+group) ... [ but (@user|+group) ]
-%(username)s: kick [dryrun] [<room_id>] (@user|+group) ... [ but (@user|+group) ]
-%(username)s: count [ (@user|+group) ... [ but (@user|+group) ] ]
-%(username)s: list [ (@user|+group) ... [ but (@user|+group) ] ]
-%(username)s: list-rooms
-%(username)s: list-groups
+%(prefix)shelp
+%(prefix)shelp extra
+%(prefix)sjoin <room_id>
+%(prefix)sinvite [dryrun] [<room_id>] (@user|+group) ... [ but (@user|+group) ]
+%(prefix)skick [dryrun] [<room_id>] (@user|+group) ... [ but (@user|+group) ]
+%(prefix)scount [ (@user|+group) ... [ but (@user|+group) ] ]
+%(prefix)slist [ (@user|+group) ... [ but (@user|+group) ] ]
+%(prefix)slist-rooms
+%(prefix)slist-groups
 ''' % vars_
             if body.find("extra") >= 0:
                 msg_help += '''
@@ -547,6 +556,12 @@ Available command aliases:
 
         sender = event["sender"]
         body = event["content"]["body"]
+
+        is_pm = self.is_private_room(room_id, self.get_user_id())
+
+        if is_pm:
+            body = "%s:" % self.username.lower() + body
+
         body = utils.get_command_alias(body, self.settings)
         if not body.lower().strip().startswith("%s" % self.username):
             return
@@ -565,9 +580,9 @@ Available command aliases:
         elif self.is_command(body, "list-groups"):
             self.do_list_groups(sender, room_id)
         elif self.is_command(body, "help"):
-            self.do_help(sender, room_id, body)
+            self.do_help(sender, room_id, body, is_pm)
         else:
-            self.do_help(sender, room_id, body)
+            self.do_help(sender, room_id, body, is_pm)
 
         #TODO: push to plugins
         for plugin in self.plugins:
