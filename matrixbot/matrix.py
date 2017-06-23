@@ -147,14 +147,14 @@ class MatrixBot():
                     self.logger.info(
                         " do_command (%s,%s,%s,dry_mode=%s)" % (
                             action,
-                            room_id,
+                            target_room_id,
                             user,
                             dry_mode))
                     res = self.call_api(action, attempts, target_room_id, user)
                 if sender:
                     msg = '''Action '%s' in room %s over %s''' % (
                         action,
-                        room_id,
+                        target_room_id,
                         " ".join(selected_users)
                     )
                     self.send_private_message(sender, msg, room_id)
