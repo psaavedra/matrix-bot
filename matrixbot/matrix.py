@@ -505,6 +505,8 @@ Available command aliases:
             # get plugin help to plugins
             for plugin in self.plugins:
                 plugin.help(
+                    sender,
+                    room_id,
                     self.send_message
                 )
 
@@ -606,10 +608,10 @@ Available command aliases:
             self.do_list_groups(sender, room_id)
         elif self.is_command(body, "help"):
             self.do_help(sender, room_id, body, is_pm)
-        else:
+        elif len (body.split()[1:]) == 0 :
             self.do_help(sender, room_id, body, is_pm)
 
-        #TODO: push to plugins
+        # push to plugins
         for plugin in self.plugins:
             plugin.command(
                 sender, room_id, body,

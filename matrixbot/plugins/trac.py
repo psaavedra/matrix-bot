@@ -55,9 +55,30 @@ class TracPlugin:
             handler(room_id, message)
 
     def command(self, sender, room_id, body, handler):
-        self.logger.debug("TracPlugin command")
-        return ""
+        self.logger.warning("TracPlugin command")
+        self.logger.warning(body)
+        plugin_name = self.settings["name"]
+        command_list = body.split()[1:]
+        
+        if len(command_list) > 0 and command_list[0] == plugin_name: 
+            if command_list[1] == "create": 
+                summary = ' '.join(command_list[2:])
+                self.logger.debug(
+                    "TracPlugin command: %s(%s)" % (
+                        "create", summary
+                    )
+                )
+                self.server.ticket.create(
+                    summary, 
+                    "", 
+                )
 
-    def help(self, handler):
+    def help(self, sender, room_id, handler):
         self.logger.debug("TracPlugin help")
-        return ""
+        if room_id in self.settings["rooms"]:
+            res = []
+            res.append("%(username)s: %(name)s create Issue summary\n" % self.settings)
+            message = "\n".join(res)
+            handler(room_id, message)
+
+
