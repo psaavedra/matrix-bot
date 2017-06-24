@@ -499,7 +499,15 @@ Available command aliases:
 
 %(aliases)s
 ''' % vars_
+
             self.send_private_message(sender, msg_help, room_id)
+
+            # get plugin help to plugins
+            for plugin in self.plugins:
+                plugin.help(
+                    self.send_message
+                )
+
         except MatrixRequestError, e:
             self.logger.warning(e)
 

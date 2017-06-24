@@ -22,7 +22,7 @@ class TracPlugin:
         return res
 
     def async(self, handler):
-        self.logger.info("TracPlugin async")
+        self.logger.debug("TracPlugin async")
         server = self.server
         multicall = xmlrpclib.MultiCall(server)
 
@@ -55,5 +55,9 @@ class TracPlugin:
             handler(room_id, message)
 
     def command(self, sender, room_id, body, handler):
-        self.logger.info("TracPlugin command")
+        self.logger.debug("TracPlugin command")
+        return ""
+
+    def help(self, handler):
+        self.logger.debug("TracPlugin help")
         return ""
