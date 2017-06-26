@@ -24,19 +24,16 @@ class TracPlugin:
     def async(self, handler):
         self.logger.debug("TracPlugin async")
         server = self.server
-        multicall = xmlrpclib.MultiCall(server)
 
         d = self.timestamp
         self.timestamp = datetime.utcnow()
         res = []
         for t in server.ticket.getRecentChanges(d):
-            # self.logger.info(t)
             ticket = server.ticket.get(t)
-            changes = server.ticket.changeLog(t)
+            changes = server.ticket.changeLog(ticket)
             if len(changes) == 0 and 'new' in self.settings['status']:  # No changes implies New ticket
                 res.append(ticket)
             for c in changes:
-                # self.logger.info(c)
                 if (
                     c[0] > d and c[2] == 'status'
                     and c[4] in self.settings['status']

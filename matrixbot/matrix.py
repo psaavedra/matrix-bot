@@ -544,12 +544,15 @@ Available command aliases:
         self.sync_token = response["next_batch"]
         self.logger.info("!!! sync_token: %s" % (self.sync_token))
         self.logger.debug("Sync response: %s" % (response))
+
         if not ignore:
+            # async to plugins
+            for plugin in self.plugins:
+                plugin.async(self.send_message)
+
+            # core
             self.sync_invitations(response['rooms']['invite'])
             self.sync_joins(response['rooms']['join'])
-        #TODO: async to plugins
-        for plugin in self.plugins:
-            plugin.async(self.send_message)
         time.sleep(self.period)
 
     def sync_invitations(self, invite_events):
