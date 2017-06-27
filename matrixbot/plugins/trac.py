@@ -3,8 +3,9 @@ from datetime import datetime, timedelta
 from matrixbot import utils
 
 class TracPlugin:
-    def __init__(self, settings):
+    def __init__(self, bot, settings):
         self.logger = utils.get_logger()
+        self.bot = bot
         self.settings = settings
         self.logger.info("TracPlugin loaded")
         self.timestamp = datetime.utcnow()

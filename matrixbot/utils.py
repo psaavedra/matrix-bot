@@ -89,12 +89,12 @@ def get_logger():
     return logging.getLogger('matrixbot')
 
 
-def get_command_alias(command, settings):
-    prefix = command.strip().split()[0]
-    command = " ".join(command.strip().split()[1:])
+def get_command_alias(message, settings):
+    prefix = message.strip().split()[0]
+    command = " ".join(message.strip().split()[1:])
     if command in settings["aliases"].keys():
         return prefix + " " + settings["aliases"][command]
-    return prefix + " " + command
+    return message
 
 
 def get_aliases(settings):

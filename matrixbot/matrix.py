@@ -47,7 +47,7 @@ class MatrixBot():
         for plugin in settings['plugins'].itervalues():
             mod = __import__(plugin['module'], fromlist=[plugin['class']])
             klass = getattr(mod, plugin['class'])
-            self.plugins.append(klass(plugin['settings']))
+            self.plugins.append(klass(self, plugin['settings']))
 
     def _get_selected_users(self, groups_users_list):
         def _add_or_remove_user(users, username, append):
