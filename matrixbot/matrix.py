@@ -9,6 +9,7 @@ from matrix_client.client import MatrixClient
 
 # import pprint
 import time
+import re
 
 from . import utils
 from . import ldap as bot_ldap
@@ -192,8 +193,28 @@ class MatrixBot():
                 time.sleep(5)
         return str(e)
 
+    def send_emote(self, room_id, message):
+        return self.call_api("send_emote", 3,
+                             room_id, message)
+
+    def send_html(self, room_id, message):
+        content = {
+            "body": re.sub('<[^<]+?>', '', message),
+            "msgtype": "m.text",
+            "format": "org.matrix.custom.html",
+            "formatted_body": message
+        }
+        return self.api.send_message_event(
+            room_id, "m.room.message",
+            content
+        )
+
     def send_message(self, room_id, message):
         return self.call_api("send_message", 3,
+                             room_id, message)
+
+    def send_notice(self, room_id, message):
+        return self.call_api("send_notice", 3,
                              room_id, message)
 
     def send_private_message(self, user_id, message, room_id=None):
