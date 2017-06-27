@@ -80,11 +80,6 @@ class MatrixBot():
             users["in"])
         return selected_users
 
-    def get_user_id(self, username=None):
-        if not username:
-            username = self.username
-        return "@%s:%s" % (username, self.domain)
-
     def normalize_user_id(self, user_id):
         if not user_id.startswith("@"):
             user_id = "@" + user_id
@@ -92,6 +87,15 @@ class MatrixBot():
         if user_id.count(":") == 0:
             user_id = "%s:%s" % (user_id, self.domain)
         return user_id
+
+    def get_user_id(self, username=None, normalized=True):
+        if not username:
+            username = self.username
+        normalized_username = self.normalize_user_id(username)
+        if normalized:
+            return normalized_username
+        else:
+            return normalized_username[1:].split(':')[0]
 
     def get_real_room_id(self, room_id):
         if room_id.startswith("#"):

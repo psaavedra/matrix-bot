@@ -30,7 +30,7 @@ class TracPlugin:
         res = []
         for t in server.ticket.getRecentChanges(d):
             ticket = server.ticket.get(t)
-            changes = server.ticket.changeLog(ticket)
+            changes = server.ticket.changeLog(t)
             if len(changes) == 0 and 'new' in self.settings['status']:  # No changes implies New ticket
                 res.append(ticket)
             for c in changes:
@@ -52,9 +52,10 @@ class TracPlugin:
             handler(room_id, message)
 
     def command(self, sender, room_id, body, handler):
-        self.logger.warning("TracPlugin command")
-        self.logger.warning(body)
+        self.logger.debug("TracPlugin command")
         plugin_name = self.settings["name"]
+        sender = sender.replace('@','')
+        sender = sender.split(':')[0]
         command_list = body.split()[1:]
         
         if len(command_list) > 0 and command_list[0] == plugin_name: 
@@ -67,7 +68,9 @@ class TracPlugin:
                 )
                 self.server.ticket.create(
                     summary, 
-                    "", 
+                    "",
+                    {"cc": sender},
+                    True
                 )
 
     def help(self, sender, room_id, handler):
