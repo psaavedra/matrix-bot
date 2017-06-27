@@ -507,7 +507,7 @@ Available command aliases:
                 plugin.help(
                     sender,
                     room_id,
-                    self.send_message
+                    lambda r,m: self.send_private_message(sender, m, None)
                 )
 
         except MatrixRequestError, e:
