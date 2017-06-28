@@ -22,9 +22,8 @@ class FeederPlugin:
         entry["title"]
         entry["author"]
         entry["link"]
-        res = """%(title)s:
-    * URL: %(link)s
-    * Author: %(author)s""" % entry
+        res = """'%(title)s' by %(author)s
+    - Link: %(link)s""" % entry
         return res
 
     def async(self, handler):
@@ -33,15 +32,18 @@ class FeederPlugin:
         res = []
         for feed_name, feed_url in self.settings["feeds"].iteritems():
             self.logger.debug("FeederPlugin async: Fetching %s ..." % feed_name)
-            feed = feedparser.parse(feed_url)
-            updated = feed['feed']['updated']
-            updated_dt = parser.parse(updated)
-            if updated_dt > self.timestamp[feed_name]:
-                for entry in feed['entries']:
-                    entry_dt = parser.parse(entry["updated"])
-                    if entry_dt > self.timestamp[feed_name]:
-                        res.append(entry)
-                self.timestamp[feed_name] = updated_dt
+            try:
+                feed = feedparser.parse(feed_url)
+                updated = feed['feed']['updated']
+                updated_dt = parser.parse(updated)
+                if updated_dt > self.timestamp[feed_name]:
+                    for entry in feed['entries']:
+                        entry_dt = parser.parse(entry["updated"])
+                        if entry_dt > self.timestamp[feed_name]:
+                            res.append(entry)
+                    self.timestamp[feed_name] = updated_dt
+            except Exception as e:
+                self.logger.error("FeederPlugin got error in feed %s: %s" % (feed_name,e))
 
         if len(res) == 0:
             return
