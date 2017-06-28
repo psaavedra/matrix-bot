@@ -56,6 +56,8 @@ setup(
         "matrix-client>=0.0.6",
         "python-ldap",
         "python-memcached",
+        "feedparser",
+        "pytz",
     ],
 
     download_url='https://github.com/psaavedra/matrix-bot/zipball/master',
