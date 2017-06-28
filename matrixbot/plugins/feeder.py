@@ -23,7 +23,7 @@ class FeederPlugin:
         entry["author"]
         entry["link"]
         res = """'%(title)s' by %(author)s
-    - Link: %(link)s""" % entry
+-- %(link)s""" % entry
         return res
 
     def async(self, handler):
