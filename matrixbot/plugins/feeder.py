@@ -14,7 +14,9 @@ class FeederPlugin:
         self.logger.info("FeederPlugin loaded")
         self.bot = bot
         self.settings = settings
-        self.timestamp = utcnow()
+        self.timestamp = {}
+        for feed in self.settings["feeds"].keys():
+            self.timestamp[feed] = utcnow()
 
     def pretty_entry(self, entry):
         entry["title"]
@@ -34,13 +36,12 @@ class FeederPlugin:
             feed = feedparser.parse(feed_url)
             updated = feed['feed']['updated']
             updated_dt = parser.parse(updated)
-            if updated_dt > self.timestamp:
+            if updated_dt > self.timestamp[feed_name]:
                 for entry in feed['entries']:
-                    updated_dt = parser.parse(entry["updated"])
-                    if updated_dt > self.timestamp:
+                    entry_dt = parser.parse(entry["updated"])
+                    if entry_dt > self.timestamp[feed_name]:
                         res.append(entry)
-
-        self.timestamp = utcnow()
+                self.timestamp[feed_name] = updated_dt
 
         if len(res) == 0:
             return
@@ -52,7 +53,7 @@ class FeederPlugin:
         message = "\n".join(res)
         for room_id in self.settings["rooms"]:
             # handler(room_id, message)
-            self.bot.send_html(room_id, message)
+            self.bot.send_notice(room_id, message)
 
     def command(self, sender, room_id, body, handler):
         self.logger.debug("FeederPlugin command")
