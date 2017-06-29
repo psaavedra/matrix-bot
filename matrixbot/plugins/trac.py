@@ -7,7 +7,7 @@ class TracPlugin:
         self.logger = utils.get_logger()
         self.bot = bot
         self.settings = settings
-        self.logger.info("TracPlugin loaded")
+        self.logger.info("TracPlugin loaded (%(name)s)" % settings)
         self.timestamp = datetime.utcnow()
         self.server = xmlrpclib.ServerProxy(
             '%(url_protocol)s://%(url_auth_user)s:%(url_auth_password)s@%(url_domain)s%(url_path)s/login/xmlrpc' % self.settings
@@ -56,10 +56,17 @@ class TracPlugin:
     def command(self, sender, room_id, body, handler):
         self.logger.debug("TracPlugin command")
         plugin_name = self.settings["name"]
+
+        # TODO: This should be a decorator
+        if self.bot.only_local_domain and not self.bot.is_local_user_id(sender):
+            self.logger.warning(
+                "TracPlugin %s plugin is not allowed for external sender (%s)" % (plugin_name, sender)
+            )
+            return
+
         sender = sender.replace('@','')
         sender = sender.split(':')[0]
         command_list = body.split()[1:]
-        
         if len(command_list) > 0 and command_list[0] == plugin_name: 
             if command_list[1] == "create": 
                 summary = ' '.join(command_list[2:])
@@ -77,10 +84,5 @@ class TracPlugin:
 
     def help(self, sender, room_id, handler):
         self.logger.debug("TracPlugin help")
-        if room_id in self.settings["rooms"]:
-            res = []
-            res.append("%(username)s: %(name)s create Issue summary\n" % self.settings)
-            message = "\n".join(res)
-            handler(room_id, message)
-
-
+        message = "%(username)s: %(name)s create Issue summary\n" % self.settings
+        handler(room_id, message)

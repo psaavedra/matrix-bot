@@ -5,7 +5,7 @@ class BroadcastPlugin:
         self.logger = utils.get_logger()
         self.bot = bot
         self.settings = settings
-        self.logger.info("BroadcastPlugin loaded")
+        self.logger.info("BroadcastPlugin loaded (%(name)s)" % settings)
 
     def async(self, handler):
         return
@@ -18,7 +18,7 @@ class BroadcastPlugin:
         
         if len(command_list) > 0 and command_list[0] == plugin_name: 
             if sender not in self.settings["users"]:
-                self.logger.debug("User %s not autorized to use BroadcastPlugin" % self)
+                self.logger.warning("User %s not autorized to use BroadcastPlugin" % self)
                 return
             announcement = body[body.find(plugin_name) + len(plugin_name) + 1:]
             html = "<h3>%s</h3> <pre>%s</pre>" % ('Announcement:', announcement)
@@ -33,8 +33,6 @@ class BroadcastPlugin:
 
     def help(self, sender, room_id, handler):
         self.logger.debug("BroadcastPlugin help")
-        if room_id in self.settings["rooms"]:
-            res = []
-            res.append("%(username)s: %(name)s Announcement\n" % self.settings)
-            message = "\n".join(res)
+        if sender in self.settings["users"]:
+            message = "%(username)s: %(name)s Announcement\n" % self.settings
             handler(room_id, message)

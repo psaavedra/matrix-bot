@@ -11,9 +11,9 @@ def utcnow():
 class FeederPlugin:
     def __init__(self, bot, settings):
         self.logger = utils.get_logger()
-        self.logger.info("FeederPlugin loaded")
         self.bot = bot
         self.settings = settings
+        self.logger.info("FeederPlugin loaded (%(name)s)" % settings)
         self.timestamp = {}
         for feed in self.settings["feeds"].keys():
             self.timestamp[feed] = utcnow()
