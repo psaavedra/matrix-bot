@@ -53,7 +53,7 @@ class FeederPlugin:
         )
         message = "\n".join(res)
         for room_id in self.settings["rooms"]:
-            # handler(room_id, message)
+            room_id = self.bot.get_real_room_id(room_id)
             self.bot.send_notice(room_id, message)
 
     def command(self, sender, room_id, body, handler):
