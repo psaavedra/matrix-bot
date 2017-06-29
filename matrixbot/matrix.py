@@ -6,6 +6,7 @@
 
 from matrix_client.api import MatrixHttpApi, MatrixRequestError
 from matrix_client.client import MatrixClient
+from matrix_client.room import Room
 
 # import pprint
 import time
@@ -121,6 +122,16 @@ class MatrixBot():
         self.logger.debug("get_room_members (non cached): %s" % (key))
         return res
 
+    def is_room_member(self, room_id, user_id):
+        try:
+            r = Room(self.client, room_id)
+            print user_id
+            print r.get_joined_members().keys()
+            return user_id in r.get_joined_members().keys()
+        except Exception, e:
+            return False
+        return False
+
     def do_command(self, action, sender, room_id, body, attempts=3):
         if sender:
             sender = self.normalize_user_id(sender)
@@ -150,6 +161,14 @@ class MatrixBot():
         ):
             target_room_id = self.get_real_room_id(body_arg_list[0])
             body_arg_list = body_arg_list[1:]
+
+        if sender and not self.is_room_member(target_room_id, sender):
+            msg = "%s is not allowed for not members (%s) of the room (%s)" % (action, sender, target_room_id)
+            self.logger.warning(msg)
+            self.send_private_message(sender,
+                                      msg,
+                                      room_id)
+            return
 
         selected_users = self._get_selected_users(body_arg_list)
 
