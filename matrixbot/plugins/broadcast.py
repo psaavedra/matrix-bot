@@ -34,5 +34,9 @@ class BroadcastPlugin:
     def help(self, sender, room_id, handler):
         self.logger.debug("BroadcastPlugin help")
         if sender in self.settings["users"]:
-            message = "%(username)s: %(name)s Announcement\n" % self.settings
+            if self.bot.is_private_room(room_id, self.bot.get_user_id()):
+                message = "%(name)s Announcement to be sent\n" % self.settings
+            else:
+                message = "%(username)s: %(name)s Announcement to be sent\n" % self.settings
             handler(room_id, message)
+

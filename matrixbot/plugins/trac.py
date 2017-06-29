@@ -84,5 +84,8 @@ class TracPlugin:
 
     def help(self, sender, room_id, handler):
         self.logger.debug("TracPlugin help")
-        message = "%(username)s: %(name)s create Issue summary\n" % self.settings
+        if self.bot.is_private_room(room_id, self.bot.get_user_id()):
+            message = "%(name)s create This is the issue summary\n" % self.settings
+        else:
+            message = "%(username)s: %(name)s create This is the issue summary\n" % self.settings
         handler(room_id, message)
