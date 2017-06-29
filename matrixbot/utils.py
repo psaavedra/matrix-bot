@@ -27,7 +27,8 @@ def get_default_settings():
         "username": "username",
         "password": "password",
         "domain": "matrix.org",
-        "rooms": []
+        "rooms": [],
+        "only_local_domain": False,
     }
     settings["ldap"] = {
         "server": "ldap://ldap.local",

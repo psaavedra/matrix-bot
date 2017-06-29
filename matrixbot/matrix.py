@@ -30,6 +30,7 @@ class MatrixBot():
         self.password = settings["matrix"]["password"]
         self.room_ids = settings["matrix"]["rooms"]
         self.domain = self.settings["matrix"]["domain"]
+        self.only_local_domain = self.settings["matrix"]["only_local_domain"]
 
         self.subscriptions_room_ids = settings["subscriptions"].keys()
         self.revokations_rooms_ids = settings["revokations"].keys()
@@ -98,6 +99,12 @@ class MatrixBot():
         else:
             return normalized_username[1:].split(':')[0]
 
+    def is_local_user_id(self, username):
+        normalized_username = self.get_user_id(username, normalized=True)
+        if normalized_username.split(':')[1] == self.domain:
+            return True
+        return False
+
     def get_real_room_id(self, room_id):
         if room_id.startswith("#"):
             room_id = self.api.get_room_id(room_id)
@@ -117,6 +124,14 @@ class MatrixBot():
     def do_command(self, action, sender, room_id, body, attempts=3):
         if sender:
             sender = self.normalize_user_id(sender)
+
+        # TODO: This should be a decorator
+        if self.only_local_domain and not self.is_local_user_id(sender):
+            self.logger.warning(
+                "do_command is not allowed for external sender (%s)" % sender
+            )
+            return
+
         body_arg_list = body.split()[2:]
         dry_mode = False
         if (
@@ -292,6 +307,8 @@ class MatrixBot():
             self.logger.debug("Room %s is a 1-to-1 with the user %s" % (room_id, user1_id))
             return True  # I just check if the room is 1-to-1 for user1_id
 
+
+        # TODO: This code must be cleaned up
         for r in res.get('chunk', []):
             if 'state_key' in r and 'membership' in r:
                 if r['state_key'] == user2_id and r['membership'] == 'invite':
@@ -299,6 +316,27 @@ class MatrixBot():
                 if r['state_key'] == user2_id and r['membership'] == 'join':
                     him = True
                 if r['state_key'] == user1_id and r['membership'] == 'join':
+                    me = True
+                if me and him:
+                    self.logger.debug(
+                        "A 1-to-1 room for %s and %s found: %s" % (
+                            user2_id,
+                            user1_id,
+                            room_id))
+                    return True
+
+        for r in res.get('chunk', []):
+            if (
+                'prev_content' in r 
+                and 'state_key' in r['prev_content'] 
+                and 'membership' in r['prev_content']
+            ):
+                p = r['prev_content']
+                if p['state_key'] == user2_id and p['membership'] == 'invite':
+                    him = True
+                if p['state_key'] == user2_id and p['membership'] == 'join':
+                    him = True
+                if p['state_key'] == user1_id and p['membership'] == 'join':
                     me = True
                 if me and him:
                     self.logger.debug(
@@ -374,6 +412,13 @@ class MatrixBot():
     def do_join(self, sender, room_id, body):
         self.logger.debug("do_join")
 
+        # TODO: This should be a decorator
+        if self.only_local_domain and not self.is_local_user_id(sender):
+            self.logger.warning(
+                "do_join is not allowed for external sender (%s)" % sender
+            )
+            return
+
         body_arg_list = body.split()[2:]
         dry_mode = False
         msg_dry_mode = " (dryrun)" if dry_mode else ""
@@ -442,6 +487,13 @@ class MatrixBot():
 
     def do_list_groups(self, sender, room_id):
         self.logger.debug("do_list_groups")
+        # TODO: This should be a decorator
+        if self.only_local_domain and not self.is_local_user_id(sender):
+            self.logger.warning(
+                "do_list_groups is not allowed for external sender (%s)" % sender
+            )
+            return
+
         groups = ', '.join(map(
             lambda x: "+%s" % x,
             self.settings["ldap"]["groups"]
@@ -454,6 +506,12 @@ class MatrixBot():
 
     def do_list_rooms(self, sender, room_id):
         self.logger.debug("do_list_rooms")
+        # TODO: This should be a decorator
+        if self.only_local_domain and not self.is_local_user_id(sender):
+            self.logger.warning(
+                "do_list_rooms is not allowed for external sender (%s)" % sender
+            )
+            return
         msg = "Room list:\n"
         rooms = self.get_rooms()
         rooms_msg_list = []
@@ -476,6 +534,13 @@ class MatrixBot():
 
     def do_list(self, sender, room_id, body):
         self.logger.debug("do_list")
+        # TODO: This should be a decorator
+        if self.only_local_domain and not self.is_local_user_id(sender):
+            self.logger.warning(
+                "do_list is not allowed for external sender (%s)" % sender
+            )
+            return
+
         body_arg_list = body.split()[2:]
         selected_users = self._get_selected_users(body_arg_list)
         msg_list = " ".join(
@@ -487,6 +552,13 @@ class MatrixBot():
             self.logger.warning(e)
 
     def do_count(self, sender, room_id, body):
+        # TODO: This should be a decorator
+        if self.only_local_domain and not self.is_local_user_id(sender):
+            self.logger.warning(
+                "do_count is not allowed for external sender (%s)" % sender
+            )
+            return
+
         self.logger.debug("do_count")
         body_arg_list = body.split()[2:]
         selected_users = self._get_selected_users(body_arg_list)
@@ -525,7 +597,13 @@ Available command aliases:
 %(aliases)s
 ''' % vars_
 
-            self.send_private_message(sender, msg_help, room_id)
+            # TODO: This should be a decorator ???
+            if self.only_local_domain and not self.is_local_user_id(sender):
+                self.logger.warning(
+                    "do_help is not allowed for external sender (%s)" % sender
+                )
+            else:
+                self.send_private_message(sender, msg_help, room_id)
 
             # get plugin help to plugins
             for plugin in self.plugins:
