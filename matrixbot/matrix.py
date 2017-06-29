@@ -678,6 +678,7 @@ Available command aliases:
         time.sleep(self.period)
 
     def sync_invitations(self, invite_events):
+        # TODO Clean code and also use only_local_domain setting
         for room_id, invite_state in invite_events.items():
             self.logger.info("+++ (invite) %s" % (room_id))
             for event in invite_state["invite_state"]["events"]:
