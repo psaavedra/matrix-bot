@@ -51,7 +51,7 @@ class TracPlugin:
         message = "\n".join(res)
         for room_id in self.settings["rooms"]:
             room_id = self.bot.get_real_room_id(room_id)
-            handler(room_id, message)
+            self.bot.send_notice(room_id, message)
 
     def command(self, sender, room_id, body, handler):
         self.logger.debug("TracPlugin command")
