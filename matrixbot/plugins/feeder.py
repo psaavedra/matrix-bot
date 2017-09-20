@@ -19,10 +19,14 @@ class FeederPlugin:
             self.timestamp[feed] = utcnow()
 
     def pretty_entry(self, entry):
-        entry["title"]
-        entry["author"]
-        entry["link"]
-        res = """%(title)s by %(author)s (%(link)s)""" % entry
+        title = entry.get("title", "New post")
+        author = entry.get("author", "")
+        if author is not "":
+            author = " by %s" % author
+        link = entry.get("link", "")
+        if link is not "":
+            link = " (%s)" % link
+        res = """%s%s%s""" % (title, author, link)
         return res
 
     def async(self, handler):
@@ -33,7 +37,10 @@ class FeederPlugin:
             self.logger.debug("FeederPlugin async: Fetching %s ..." % feed_name)
             try:
                 feed = feedparser.parse(feed_url)
-                updated = feed['feed']['updated']
+                updated = feed.get('feed',{}).get(
+                                                  'updated',
+                                                  utcnow().isoformat()
+                                                 )
                 updated_dt = parser.parse(updated)
                 if updated_dt > self.timestamp[feed_name]:
                     for entry in feed['entries']:
