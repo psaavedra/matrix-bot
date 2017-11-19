@@ -672,7 +672,7 @@ Available command aliases:
                     plugin.async(self.send_message)
                 except Exception, e:
                     self.logger.error(
-                        "Error in plugin %s: %s" % (plugins.name, e)
+                        "Error in plugin %s: %s" % (plugin.name, e)
                     )
             # core
             self.sync_invitations(response['rooms']['invite'])
