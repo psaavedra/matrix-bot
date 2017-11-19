@@ -80,6 +80,7 @@ settings["allowed-join"] = {
 # plugin_feeder["module"] = "matrixbot.plugins.feeder"
 # plugin_feeder["class"] = "FeederPlugin"
 # plugin_feeder["settings"] = {
+#     "period": 60,
 #     "username": "username",
 #     "name": "feed",
 #     "rooms": ["!room_id"],

@@ -1,5 +1,6 @@
 import feedparser
 import pytz
+import time
 from datetime import datetime, timedelta
 from matrixbot import utils
 from dateutil import parser
@@ -17,6 +18,8 @@ class FeederPlugin:
         self.timestamp = {}
         for feed in self.settings["feeds"].keys():
             self.timestamp[feed] = utcnow()
+        self.lastime = time.time()
+        self.period = self.settings.get('period', 60):
 
     def pretty_entry(self, entry):
         title = entry.get("title", "New post")
@@ -31,6 +34,10 @@ class FeederPlugin:
 
     def async(self, handler):
         self.logger.debug("FeederPlugin async")
+        now = time.time()
+        if now < self.lastime + self.period:
+            return  # Feeder is only updated each 'period' time
+        self.lastime = now
 
         res = []
         for feed_name, feed_url in self.settings["feeds"].iteritems():
