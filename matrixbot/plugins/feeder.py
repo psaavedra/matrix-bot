@@ -43,11 +43,13 @@ class FeederPlugin:
                                                  )
                 updated_dt = parser.parse(updated)
                 if updated_dt > self.timestamp[feed_name]:
+                    actual_updated_dt = self.timestamp[feed_name]
                     for entry in feed['entries']:
                         entry_dt = parser.parse(entry["updated"])
                         if entry_dt > self.timestamp[feed_name]:
                             res.append(entry)
-                    self.timestamp[feed_name] = updated_dt
+                        actual_updated_dt = max (entry_dt, actual_updated_dt)
+                    self.timestamp[feed_name] = actual_updated_dt
             except Exception as e:
                 self.logger.error("FeederPlugin got error in feed %s: %s" % (feed_name,e))
 
