@@ -19,7 +19,7 @@ class FeederPlugin:
         for feed in self.settings["feeds"].keys():
             self.timestamp[feed] = utcnow()
         self.lastime = time.time()
-        self.period = self.settings.get('period', 60):
+        self.period = self.settings.get('period', 60)
 
     def pretty_entry(self, entry):
         title = entry.get("title", "New post")

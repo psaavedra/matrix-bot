@@ -668,8 +668,12 @@ Available command aliases:
         if not ignore:
             # async to plugins
             for plugin in self.plugins:
-                plugin.async(self.send_message)
-
+                try:
+                    plugin.async(self.send_message)
+                except Exception, e:
+                    self.logger.error(
+                        "Error in plugin %s: %s" % (plugins.name, e)
+                    )
             # core
             self.sync_invitations(response['rooms']['invite'])
             self.sync_joins(response['rooms']['join'])
