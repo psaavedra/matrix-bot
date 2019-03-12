@@ -4,7 +4,7 @@
 # Maintainer: Pablo Saavedra
 # Contact: saavedra.pablo at gmail.com
 
-from matrix_client.api import MatrixHttpApi, MatrixRequestError
+from matrix_client.api import MatrixRequestError
 from matrix_client.client import MatrixClient
 from matrix_client.room import Room
 
@@ -41,7 +41,6 @@ class MatrixBot():
         self.client = MatrixClient(self.uri)
         self.token = self.client.login_with_password(username=self.username,
                                                      password=self.password)
-        self.api = MatrixHttpApi(self.uri, token=self.token)
 
         self.rooms = []
         self.room_aliases = {}
@@ -108,7 +107,7 @@ class MatrixBot():
 
     def get_real_room_id(self, room_id):
         if room_id.startswith("#"):
-            room_id = self.api.get_room_id(room_id)
+            room_id = self.client.api.get_room_id(room_id)
         return room_id
 
     def get_room_members(self, room_id):
@@ -211,7 +210,7 @@ class MatrixBot():
             self.do_command("kick_user", None, room_id, body, attempts=1)
 
     def call_api(self, action, max_attempts, *args):
-        method = getattr(self.api, action)
+        method = getattr(self.client.api, action)
         attempts = max_attempts
         while attempts > 0:
             try:
@@ -236,7 +235,7 @@ class MatrixBot():
             "format": "org.matrix.custom.html",
             "formatted_body": message
         }
-        return self.api.send_message_event(
+        return self.client.api.send_message_event(
             room_id, "m.room.message",
             content
         )
@@ -538,7 +537,7 @@ class MatrixBot():
                 self.logger.debug("Room %s hasn't got aliases. Skipping" % (r))
                 continue  # We are looking for rooms with alias
             try:
-                name = self.api.get_room_name(r)['name']
+                name = self.client.api.get_room_name(r)['name']
             except Exception, e:
                 self.logger.debug("Error getting the room name %s: %s" % (r, e))
                 name = "No named"
@@ -659,7 +658,7 @@ Available command aliases:
         return self.room_aliases[room_id] if room_id in self.room_aliases else []
 
     def sync(self, ignore=False, timeout_ms=30000):
-        response = self.api.sync(self.sync_token, timeout_ms, full_state='true')
+        response = self.client.api.sync(self.sync_token, timeout_ms, full_state='true')
         self._set_rooms(response)
         self.sync_token = response["next_batch"]
         self.logger.info("!!! sync_token: %s" % (self.sync_token))
