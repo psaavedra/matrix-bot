@@ -684,8 +684,9 @@ Available command aliases:
             self.logger.info("+++ (invite) %s" % (room_id))
             for event in invite_state["invite_state"]["events"]:
                 if event["type"] == 'm.room.member' and \
-                        "membership" in event and \
-                        event["membership"] == 'invite' and \
+                        "content" in event and \
+                        "membership" in event["content"] and \
+                        event["content"]["membership"] == 'invite' and \
                         "sender" in event and \
                         event["sender"].endswith(self.domain):
                     self.call_api("join_room", 3, room_id)
