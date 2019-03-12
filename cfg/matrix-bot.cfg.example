@@ -90,3 +90,21 @@ settings["allowed-join"] = {
 # }
 #
 # settings["plugins"]["plugin_feeder"] = plugin_feeder
+
+# plugin_wk={}
+# plugin_wk["module"] = "matrixbot.plugins.wkbotsfeeder"
+# plugin_wk["class"] = "WKBotsFeederPlugin"
+# plugin_wk["settings"] = {
+#     "username": "bot",
+#     "period": 10,
+#     "name": "wk",
+#     "rooms": ["!room_id"],
+#     "builders": {
+#         "WPE Linux 64-bit Release (Build)": {
+#             "last_buildjob_url_squema": "https://build.webkit.org/builders/%(builder_name)s/builds/%(last_buildjob)s",
+#             "builds_url_squema": "https://build.webkit.org/json/builders/%(builder_name)s/builds?select=-2&as_text=1",
+#             "builder_name": 'WPE Linux 64-bit Release (Build)',
+#             "only_failures": False
+#         },
+# }
+# settings["plugins"]["plugin_feeder"] = plugin_feeder

@@ -58,6 +58,7 @@ setup(
         "python-memcached",
         "feedparser",
         "pytz",
+        "requests",
     ],
 
     download_url='https://github.com/psaavedra/matrix-bot/zipball/master',

@@ -11,6 +11,7 @@ def utcnow():
 
 class FeederPlugin:
     def __init__(self, bot, settings):
+        self.name = "FeederPlugin"
         self.logger = utils.get_logger()
         self.bot = bot
         self.settings = settings

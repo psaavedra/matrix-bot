@@ -5,6 +5,7 @@ from matrixbot import utils
 class TracPlugin:
     def __init__(self, bot, settings):
         self.logger = utils.get_logger()
+        self.name = "TracPlugin"
         self.bot = bot
         self.settings = settings
         self.logger.info("TracPlugin loaded (%(name)s)" % settings)
