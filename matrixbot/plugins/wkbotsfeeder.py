@@ -11,6 +11,12 @@ def utcnow():
     now = datetime.utcnow()
     return now.replace(tzinfo=pytz.utc)
 
+
+def set_property(settings, builder, setting):
+    if setting in settings and not setting in builder:
+        builder[setting] = settings[setting]
+
+
 class WKBotsFeederPlugin:
     def __init__(self, bot, settings):
         self.name = "WKBotsFeederPlugin"
@@ -18,8 +24,14 @@ class WKBotsFeederPlugin:
         self.bot = bot
         self.settings = settings
         self.logger.info("WKBotsFeederPlugin loaded (%(name)s)" % settings)
-        for builder in self.settings["builders"].itervalues():
+        for builder_name, builder in self.settings["builders"].iteritems():
+            if 'builder_name' not in builder:
+                builder['builder_name'] = builder_name
             builder['last_buildjob'] = -1
+            set_property(self.settings, builder, "last_buildjob_url_squema")
+            set_property(self.settings, builder, "builds_url_squema")
+            set_property(self.settings, builder, "only_failures")
+            self.logger.info("WKBotsFeederPlugin loaded (%(name)s) builder: " % settings + json.dumps(builder, indent = 4))
         self.lasttime = time.time()
         self.period = self.settings.get('period', 60)
 
@@ -28,7 +40,7 @@ class WKBotsFeederPlugin:
         if builder['failed']:
             res += " **failed**"
         else:
-            res += " finished" 
+            res += " finished"
         res += ": " + builder['last_buildjob_url_squema'] % {
             'builder_name': urllib.quote(builder['builder_name']),
             'last_buildjob': builder['last_buildjob'],
