@@ -36,15 +36,18 @@ class WKBotsFeederPlugin:
         self.period = self.settings.get('period', 60)
 
     def pretty_entry(self, builder):
-        res = "%(builder_name)s (%(last_buildjob)s)" % builder
-        if builder['failed']:
-            res += " **failed**"
-        else:
-            res += " finished"
-        res += ": " + builder['last_buildjob_url_squema'] % {
+        url = builder['last_buildjob_url_squema'] % {
             'builder_name': urllib.quote(builder['builder_name']),
             'last_buildjob': builder['last_buildjob'],
         }
+
+        res = "%(builder_name)s " % builder
+        res += "(<a href='%s'>" % url
+        res += "%(last_buildjob)s </a>): " % builder
+        if builder['failed']:
+            res += "<font color='red'><strong>failed</strong></font>"
+        else:
+            res += "<font color='green'><strong>success</strong></font>"
         return res
 
     def async(self, handler):
@@ -61,27 +64,24 @@ class WKBotsFeederPlugin:
                 r = requests.get(builder['builds_url_squema'] % builder).json()
                 failed = 'failed' in r['-2']['text']
                 last_buildjob = r['-2']['number']
+                last_comments = r['-2']['sourceStamp']['changes'][0]['comments']
                 if builder['last_buildjob'] >= last_buildjob:
                     continue
 
                 builder["failed"] = failed
                 builder["last_buildjob"] = last_buildjob
+                builder["last_comments"] = last_comments
 
                 if builder['only_failures'] and not failed:
                     continue
 
-                res.append(builder)
+                message = self.pretty_entry(builder)
+                for room_id in self.settings["rooms"]:
+                    room_id = self.bot.get_real_room_id(room_id)
+                    self.bot.send_html(room_id, message, msgtype="m.notice")
             except Exception as e:
                 self.logger.error("WKBotsFeederPlugin got error in builder %s: %s" % (builder_name,e))
 
-        if len(res) == 0:
-            return
-
-        res = map(self.pretty_entry, res)
-        message = "\n".join(res)
-        for room_id in self.settings["rooms"]:
-            room_id = self.bot.get_real_room_id(room_id)
-            self.bot.send_notice(room_id, message)
 
     def command(self, sender, room_id, body, handler):
         self.logger.debug("WKBotsFeederPlugin command")

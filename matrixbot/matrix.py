@@ -228,10 +228,10 @@ class MatrixBot():
         return self.call_api("send_emote", 3,
                              room_id, message)
 
-    def send_html(self, room_id, message):
+    def send_html(self, room_id, message, msgtype="m.text"):
         content = {
             "body": re.sub('<[^<]+?>', '', message),
-            "msgtype": "m.text",
+            "msgtype": msgtype,
             "format": "org.matrix.custom.html",
             "formatted_body": message
         }
