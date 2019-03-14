@@ -12,9 +12,13 @@ def utcnow():
     return now.replace(tzinfo=pytz.utc)
 
 
-def set_property(settings, builder, setting):
-    if setting in settings and not setting in builder:
+def set_property(settings, builder, setting, default=None):
+    if setting in builder:
+        return
+    if setting in settings:
         builder[setting] = settings[setting]
+    else:
+        builder[setting] = default
 
 
 class WKBotsFeederPlugin:
@@ -30,7 +34,8 @@ class WKBotsFeederPlugin:
             builder['last_buildjob'] = -1
             set_property(self.settings, builder, "last_buildjob_url_squema")
             set_property(self.settings, builder, "builds_url_squema")
-            set_property(self.settings, builder, "only_failures")
+            set_property(self.settings, builder, "only_failures", default=True)
+            set_property(self.settings, builder, "notify_recoveries", default=True)
             self.logger.info("WKBotsFeederPlugin loaded (%(name)s) builder: " % settings + json.dumps(builder, indent = 4))
         self.lasttime = time.time()
         self.period = self.settings.get('period', 60)
@@ -44,11 +49,21 @@ class WKBotsFeederPlugin:
         res = "%(builder_name)s " % builder
         res += "(<a href='%s'>" % url
         res += "%(last_buildjob)s </a>): " % builder
+
+        if builder['recovery']:
+            res += "<font color='green'><strong>recovery</strong></font>"
+            return res
+
         if builder['failed']:
             res += "<font color='red'><strong>failed</strong></font>"
         else:
             res += "<font color='green'><strong>success</strong></font>"
         return res
+
+    def sent(self, message):
+        for room_id in self.settings["rooms"]:
+            room_id = self.bot.get_real_room_id(room_id)
+            self.bot.send_html(room_id, message, msgtype="m.notice")
 
     def async(self, handler):
         self.logger.debug("WKBotsFeederPlugin async")
@@ -68,17 +83,25 @@ class WKBotsFeederPlugin:
                 if builder['last_buildjob'] >= last_buildjob:
                     continue
 
+                if 'failed' in builder and builder['failed'] and not failed:
+                    builder["recovery"] = True
+                else:
+                    builder["recovery"] = False
                 builder["failed"] = failed
                 builder["last_buildjob"] = last_buildjob
                 builder["last_comments"] = last_comments
 
-                if builder['only_failures'] and not failed:
-                    continue
+                send_message = False
+                if not builder['only_failures']:
+                    send_message = True
+                if failed:
+                    send_message = True
+                if builder["notify_recoveries"] and builder["recovery"]:
+                    send_message = True
 
-                message = self.pretty_entry(builder)
-                for room_id in self.settings["rooms"]:
-                    room_id = self.bot.get_real_room_id(room_id)
-                    self.bot.send_html(room_id, message, msgtype="m.notice")
+                if send_message:
+                    message = self.pretty_entry(builder)
+                    self.sent(message)
             except Exception as e:
                 self.logger.error("WKBotsFeederPlugin got error in builder %s: %s" % (builder_name,e))
 
