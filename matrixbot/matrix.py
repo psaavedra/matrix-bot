@@ -219,7 +219,7 @@ class MatrixBot():
                 self.logger.debug("Call response: %s" % (response))
                 return response
             except MatrixRequestError, e:
-                self.logger.error("Fail (%s/%s) in call %s action with: %s - %s" % (attempts, max_attempts, action, args, e))
+                self.logger.debug("Fail (%s/%s) in call %s action with: %s - %s" % (attempts, max_attempts, action, args, e))
                 attempts -= 1
                 time.sleep(5)
         return str(e)
@@ -326,12 +326,16 @@ class MatrixBot():
 
         # TODO: This code must be cleaned up
         for r in res.get('chunk', []):
-            if 'state_key' in r and 'membership' in r:
-                if r['state_key'] == user2_id and r['membership'] == 'invite':
+            if (
+                'content' in r
+                and 'state_key' in r
+                and 'membership' in r['content']
+            ):
+                if r['state_key'] == user2_id and r['content']['membership'] == 'invite':
                     him = True
-                if r['state_key'] == user2_id and r['membership'] == 'join':
+                if r['state_key'] == user2_id and r['content']['membership'] == 'join':
                     him = True
-                if r['state_key'] == user1_id and r['membership'] == 'join':
+                if r['state_key'] == user1_id and r['content']['membership'] == 'join':
                     me = True
                 if me and him:
                     self.logger.debug(
@@ -343,8 +347,8 @@ class MatrixBot():
 
         for r in res.get('chunk', []):
             if (
-                'prev_content' in r 
-                and 'state_key' in r['prev_content'] 
+                'prev_content' in r
+                and 'state_key' in r['prev_content']
                 and 'membership' in r['prev_content']
             ):
                 p = r['prev_content']
