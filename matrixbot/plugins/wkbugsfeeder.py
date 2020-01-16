@@ -29,7 +29,12 @@ class WKBugsFeederPlugin(FeederPlugin):
                 resolution = bug_json['bugs'][0]['resolution']
                 status = " (%s %s)" % (status, resolution)
             else:
-                status = " (%s)" % (status)
+                last_change_time = bug_json['bugs'][0]['last_change_time']
+                creation_time = bug_json['bugs'][0]['creation_time']
+                if last_change_time == creation_time:
+                    status = " (NEW)"
+                else:
+                    status = " (UPDATED)"
         except Exception:
             status = ""
         link = entry.get("link", "")
