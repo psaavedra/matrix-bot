@@ -21,11 +21,11 @@ class WKBugsFeederPlugin(FeederPlugin):
         id_ = entry.get("id", "id=NONE").split("=")[1]
         try:
             bug_json = requests.get(WK_BUGS_API + id_).json()
-            if author is not "":
+            if author == "":
                 author = " by %s (%s)" % (author,
                                           bug_json['bugs'][0]['creator'].split("@")[0])
             status = bug_json['bugs'][0]['status']
-            if status is "RESOLVED":
+            if status == "RESOLVED":
                 resolution = bug_json['bugs'][0]['resolution']
                 status = " (%s %s)" % (status, resolution)
             else:
