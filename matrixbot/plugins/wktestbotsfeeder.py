@@ -21,13 +21,13 @@ def set_property(settings, builder, setting, default=None):
         builder[setting] = default
 
 
-class WKBotsFeederPlugin:
+class WKTestBotsFeederPlugin:
     def __init__(self, bot, settings):
-        self.name = "WKBotsFeederPlugin"
+        self.name = "WKTestBotsFeederPlugin"
         self.logger = utils.get_logger()
         self.bot = bot
         self.settings = settings
-        self.logger.info("WKBotsFeederPlugin loaded (%(name)s)" % settings)
+        self.logger.info("WKTestBotsFeederPlugin loaded (%(name)s)" % settings)
         for builder_name, builder in self.settings["builders"].iteritems():
             if 'builder_name' not in builder:
                 builder['builder_name'] = builder_name
@@ -36,7 +36,7 @@ class WKBotsFeederPlugin:
             set_property(self.settings, builder, "builds_url_squema")
             set_property(self.settings, builder, "only_failures", default=True)
             set_property(self.settings, builder, "notify_recoveries", default=True)
-            self.logger.info("WKBotsFeederPlugin loaded (%(name)s) builder: " % settings + json.dumps(builder, indent = 4))
+            self.logger.info("WKTestBotsFeederPlugin loaded (%(name)s) builder: " % settings + json.dumps(builder, indent = 4))
         self.lasttime = time.time()
         self.period = self.settings.get('period', 60)
 
@@ -66,7 +66,7 @@ class WKBotsFeederPlugin:
             self.bot.send_html(room_id, message, msgtype="m.notice")
 
     def async(self, handler):
-        self.logger.debug("WKBotsFeederPlugin async")
+        self.logger.debug("WKTestBotsFeederPlugin async")
         now = time.time()
         if now < self.lasttime + self.period:
             return  # Feeder is only updated each 'period' time
@@ -74,7 +74,7 @@ class WKBotsFeederPlugin:
 
         res = []
         for builder_name, builder in self.settings["builders"].iteritems():
-            self.logger.debug("WKBotsFeederPlugin async: Fetching %s ..." % builder_name)
+            self.logger.debug("WKTestBotsFeederPlugin async: Fetching %s ..." % builder_name)
             try:
                 r = requests.get(builder['builds_url_squema'] % builder).json()
                 failed = 'failed' in r['-2']['text']
@@ -103,13 +103,13 @@ class WKBotsFeederPlugin:
                     message = self.pretty_entry(builder)
                     self.sent(message)
             except Exception as e:
-                self.logger.error("WKBotsFeederPlugin got error in builder %s: %s" % (builder_name,e))
+                self.logger.error("WKTestBotsFeederPlugin got error in builder %s: %s" % (builder_name,e))
 
 
     def command(self, sender, room_id, body, handler):
-        self.logger.debug("WKBotsFeederPlugin command")
+        self.logger.debug("WKTestBotsFeederPlugin command")
         return
 
     def help(self, sender, room_id, handler):
-        self.logger.debug("WKBotsFeederPlugin help")
+        self.logger.debug("WKTestBotsFeederPlugin help")
         return
