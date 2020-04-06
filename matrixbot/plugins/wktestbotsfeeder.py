@@ -3,6 +3,8 @@ import pytz
 import requests
 import urllib
 import time
+import re
+
 from datetime import datetime, timedelta
 from matrixbot import utils
 from dateutil import parser
@@ -51,19 +53,28 @@ class WKTestBotsFeederPlugin:
         res += "%(last_buildjob)s </a>): " % builder
 
         if builder['recovery']:
-            res += "<font color='green'><strong>recovery</strong></font>"
+            res += "<p><font color='green'><strong>%s</strong></font> (%s)</p>" % ('Recovery', builder['summary'])
             return res
 
         if builder['failed']:
-            res += "<font color='red'><strong>failed</strong></font>"
+            res += "<p><font color='red'><strong>%s</strong></font> (%s)</p>" % ('Exiting early', builder['summary'])
         else:
-            res += "<font color='green'><strong>success</strong></font>"
+            res += "<p><font color='green'><strong>%s</strong></font> (%s)</p>" % ('Success', builder['summary'])
         return res
 
     def sent(self, message):
         for room_id in self.settings["rooms"]:
             room_id = self.bot.get_real_room_id(room_id)
             self.bot.send_html(room_id, message, msgtype="m.notice")
+
+    def has_failed(self, build):
+        for each in build['text']:
+            if (re.search('exiting early', each, re.IGNORECASE)):
+                return True
+        return False
+
+    def summary(self, build):
+        return " ".join(build['text'])
 
     def async(self, handler):
         self.logger.debug("WKTestBotsFeederPlugin async")
@@ -77,13 +88,13 @@ class WKTestBotsFeederPlugin:
             self.logger.debug("WKTestBotsFeederPlugin async: Fetching %s ..." % builder_name)
             try:
                 r = requests.get(builder['builds_url_squema'] % builder).json()
-                failed = 'failed' in r['-2']['text']
+                failed = self.has_failed(r['-2'])
                 last_buildjob = r['-2']['number']
                 last_comments = r['-2']['sourceStamp']['changes'][0]['comments']
                 if builder['last_buildjob'] >= last_buildjob:
                     continue
 
-                if 'failed' in builder and builder['failed'] and not failed:
+                if ('failed' in builder and builder['failed']) and not failed:
                     builder["recovery"] = True
                 else:
                     builder["recovery"] = False
@@ -100,6 +111,7 @@ class WKTestBotsFeederPlugin:
                     send_message = True
 
                 if send_message:
+                    builder["summary"] = self.summary(r['-2'])
                     message = self.pretty_entry(builder)
                     self.sent(message)
             except Exception as e:
