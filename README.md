@@ -9,7 +9,7 @@
 pip install  git+https://github.com/psaavedra/matrix-bot.git
 ```
 
-* Installation for develepment:
+* Installation for development:
 
 ```
 sudo pip install getconf matrix-client==0.0.6 python-ldap python-memcached feedparser pytz requests
@@ -17,7 +17,7 @@ git clone http://github.com/psaavedra/matrix-bot.git
 cd matrix-bot/
 cd tools/
 ln -s ../matrixbot matrixbot
-./macbotrix-bot --help
+./matrix-bot --help
 cat <<EOF > test.cfg
 settings["DEFAULT"] = {
     "loglevel": 10,
