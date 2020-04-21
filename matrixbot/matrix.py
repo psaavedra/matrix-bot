@@ -641,19 +641,21 @@ Available command aliases:
         for rooms_types in response_dict['rooms'].keys():
             for room_id in response_dict['rooms'][rooms_types].keys():
                 new_room_list.append(room_id)
-                self._set_room_aliases(room_id, response_dict['rooms'][rooms_types][room_id])
+                self._set_room_aliases(room_id)
         self.rooms = new_room_list
 
-    def _set_room_aliases(self, room_id, room_dict):
+    def _set_room_aliases(self, room_id):
+        room_dict_state = None
         try:
             aliases = []
-            for e in room_dict['state']['events']:
+            room_dict_state = self.client.api.get_room_state(room_id)
+            for e in room_dict_state:
                 if e['type'] == 'm.room.aliases':
                     aliases = e['content']['aliases']
             self.room_aliases[room_id] = aliases
         except Exception, e:
             self.logger.debug("Error getting aliases for %s: %s" % (room_id, e))
-            self.logger.debug("Dict: %s" % (room_dict))
+            self.logger.debug("Dict: %s" % (room_dict_state))
 
     def get_rooms(self):
         return self.rooms
