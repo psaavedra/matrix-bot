@@ -73,6 +73,12 @@ class WKTestBotsFeederPlugin:
                 return True
         return False
 
+    def was_exception(self, build):
+        for each in build['text']:
+            if (re.search('exception', each, re.IGNORECASE)):
+                return True
+        return False
+
     def summary(self, build):
         return " ".join(build['text'])
 
@@ -99,7 +105,7 @@ class WKTestBotsFeederPlugin:
                     continue
 
                 if ('failed' in builder and builder['failed']) and not failed:
-                    builder["recovery"] = True
+                    builder["recovery"] = not self.was_exception(b)
                 else:
                     builder["recovery"] = False
 
