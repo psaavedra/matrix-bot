@@ -76,6 +76,12 @@ class WKTestBotsFeederPlugin:
     def summary(self, build):
         return " ".join(build['text'])
 
+    def comments(self, build):
+        return build['sourceStamp']['changes'][0]['comments']
+
+    def build_number(self, build):
+        return build['number']
+
     def async(self, handler):
         self.logger.debug("WKTestBotsFeederPlugin async")
         now = time.time()
@@ -88,30 +94,29 @@ class WKTestBotsFeederPlugin:
             self.logger.debug("WKTestBotsFeederPlugin async: Fetching %s ..." % builder_name)
             try:
                 r = requests.get(builder['builds_url_squema'] % builder).json()
-                failed = self.has_failed(r['-2'])
-                last_buildjob = r['-2']['number']
-                last_comments = r['-2']['sourceStamp']['changes'][0]['comments']
-                if builder['last_buildjob'] >= last_buildjob:
+                b = r['-2']
+                if builder['last_buildjob'] >= self.build_number(b):
                     continue
 
                 if ('failed' in builder and builder['failed']) and not failed:
                     builder["recovery"] = True
                 else:
                     builder["recovery"] = False
-                builder["failed"] = failed
-                builder["last_buildjob"] = last_buildjob
-                builder["last_comments"] = last_comments
+
+                builder["failed"] = self.has_failed(b)
+                builder["last_buildjob"] = self.build_number(b)
+                builder["last_comments"] = self.comments(b)
 
                 send_message = False
                 if not builder['only_failures']:
                     send_message = True
-                if failed:
+                if builder["failed"]:
                     send_message = True
                 if builder["notify_recoveries"] and builder["recovery"]:
                     send_message = True
 
                 if send_message:
-                    builder["summary"] = self.summary(r['-2'])
+                    builder["summary"] = self.summary(b)
                     message = self.pretty_entry(builder)
                     self.sent(message)
             except Exception as e:
