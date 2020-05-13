@@ -103,8 +103,12 @@ settings["allowed-join"] = {
 #         "WPE Linux 64-bit Release (Build)": {
 #             "last_buildjob_url_squema": "https://build.webkit.org/builders/%(builder_name)s/builds/%(last_buildjob)s",
 #             "builds_url_squema": "https://build.webkit.org/json/builders/%(builder_name)s/builds?select=-2&as_text=1",
-#             "builder_name": 'WPE Linux 64-bit Release (Build)',
-#             "only_failures": False
+#             "builder_name": "WPE Linux 64-bit Release (Build)",
+#             "only_failures": False,
+#             "target_step": {
+#               "name": "compile-webkit",
+#               "text": "compiled"
+#             }
 #         },
 # }
 # settings["plugins"]["plugin_feeder"] = plugin_feeder

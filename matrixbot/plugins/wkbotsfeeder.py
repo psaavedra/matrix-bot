@@ -75,8 +75,18 @@ class WKBotsFeederPlugin:
     def should_send_message(self, builder, failed):
         return failed or builder['only_failures'] or (builder['notify_recoveries'] and builder['recovery'])
 
-    def build_failed(self, build):
-        return not 'failed' in build['text']
+    def build_failed(self, builder, build):
+        return not self.build_succeeded(builder, build)
+
+    def build_succeeded(self, builder, build):
+        if 'target_step' in builder:
+            target_step = builder['target_step']
+            for each in build['steps']:
+                if each['name'] == target_step['name'] and target_step['text'] in each['text']:
+                    return True
+            return False
+        else:
+            return not 'failed' in build['text']
 
     def async(self, handler=None):
         self.logger.debug("WKBotsFeederPlugin async")
@@ -95,7 +105,7 @@ class WKBotsFeederPlugin:
                 if builder['last_buildjob'] >= build['number']:
                     continue
 
-                failed = self.build_failed(build)
+                failed = self.build_failed(builder, build)
 
                 builder.update({
                     'failed': failed,
