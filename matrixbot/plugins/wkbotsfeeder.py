@@ -40,6 +40,15 @@ class WKBotsFeederPlugin:
         self.lasttime = time.time()
         self.period = self.settings.get('period', 60)
 
+    def format(self, text, **kwargs):
+       ret="{content}"
+       for key in kwargs:
+          if key == "color":
+             ret = ret.format(content="<font color='{color}'>{{content}}</font>".format(color=kwargs['color']))
+          else:
+             ret = ret.format(content="<{tag}>{{content}}</{tag}>".format(tag=key))
+       return ret.format(content=text)
+
     def pretty_entry(self, builder):
         url = builder['last_buildjob_url_squema'] % {
             'builder_name': urllib.quote(builder['builder_name']),
@@ -51,13 +60,11 @@ class WKBotsFeederPlugin:
         res += "%(last_buildjob)s </a>): " % builder
 
         if builder['recovery']:
-            res += "<font color='green'><strong>recovery</strong></font>"
-            return res
-
-        if builder['failed']:
-            res += "<font color='red'><strong>failed</strong></font>"
+            res += self.format("recovery", color="green", strong="")
+        elif builder['failed']:
+            res += self.format("failed", color="red", strong="")
         else:
-            res += "<font color='green'><strong>success</strong></font>"
+            res += self.format("success", color="green", strong="")
         return res
 
     def sent(self, message):
@@ -65,7 +72,13 @@ class WKBotsFeederPlugin:
             room_id = self.bot.get_real_room_id(room_id)
             self.bot.send_html(room_id, message, msgtype="m.notice")
 
-    def async(self, handler):
+    def should_send_message(self, builder, failed):
+        return failed or builder['only_failures'] or (builder['notify_recoveries'] and builder['recovery'])
+
+    def build_failed(self, build):
+        return not 'failed' in build['text']
+
+    def async(self, handler=None):
         self.logger.debug("WKBotsFeederPlugin async")
         now = time.time()
         if now < self.lasttime + self.period:
@@ -77,29 +90,21 @@ class WKBotsFeederPlugin:
             self.logger.debug("WKBotsFeederPlugin async: Fetching %s ..." % builder_name)
             try:
                 r = requests.get(builder['builds_url_squema'] % builder).json()
-                failed = 'failed' in r['-2']['text']
-                last_buildjob = r['-2']['number']
-                last_comments = r['-2']['sourceStamp']['changes'][0]['comments']
-                if builder['last_buildjob'] >= last_buildjob:
+                build = r['-2']
+
+                if builder['last_buildjob'] >= build['number']:
                     continue
 
-                if 'failed' in builder and builder['failed'] and not failed:
-                    builder["recovery"] = True
-                else:
-                    builder["recovery"] = False
-                builder["failed"] = failed
-                builder["last_buildjob"] = last_buildjob
-                builder["last_comments"] = last_comments
+                failed = self.build_failed(build)
 
-                send_message = False
-                if not builder['only_failures']:
-                    send_message = True
-                if failed:
-                    send_message = True
-                if builder["notify_recoveries"] and builder["recovery"]:
-                    send_message = True
+                builder.update({
+                    'failed': failed,
+                    'last_buildjob': build['number'],
+                    'last_comments': build['sourceStamp']['changes'][0]['comments'],
+                    'recovery': 'failed' in builder and not failed
+                })
 
-                if send_message:
+                if self.should_send_message(builder, failed):
                     message = self.pretty_entry(builder)
                     self.sent(message)
             except Exception as e:
