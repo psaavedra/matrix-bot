@@ -67,7 +67,7 @@ class WKBotsFeederPlugin:
             res += self.format("success", color="green", strong="")
         return res
 
-    def sent(self, message):
+    def send(self, message):
         for room_id in self.settings["rooms"]:
             room_id = self.bot.get_real_room_id(room_id)
             self.bot.send_html(room_id, message, msgtype="m.notice")
@@ -116,7 +116,7 @@ class WKBotsFeederPlugin:
 
                 if self.should_send_message(builder, failed):
                     message = self.pretty_entry(builder)
-                    self.sent(message)
+                    self.send(message)
             except Exception as e:
                 self.logger.error("WKBotsFeederPlugin got error in builder %s: %s" % (builder_name,e))
 
