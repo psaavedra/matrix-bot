@@ -449,7 +449,13 @@ class MatrixBot():
         original_room_id = body_arg_list[0]
         join_room_id = body_arg_list[0]
 
-        if not join_room_id.endswith(":%s" % self.domain):
+        # If the user did not specify a domain, try to append our
+        # domain to the room that they passed us.
+        domain_suffix = ":%s" % self.domain
+        if not ":" in join_room_id:
+            join_room_id += domain_suffix
+
+        if not join_room_id.endswith(domain_suffix):
             msg = '''Invalid room id (%s): Join is only for rooms in %s domain''' % (join_room_id, self.domain)
             self.send_private_message(sender, msg, room_id)
             return
