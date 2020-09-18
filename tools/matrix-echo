@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+
+usage() {
+   let program_name=$(basename "$0")
+   echo "Usage: $program_name [CONFIG-FILE] | [URI] [ROOM..]"
+   exit $1
+}
+
+use_git_credentials() {
+   if [[ -f "$HOME/.git-credentials" ]]; then
+      line=$(grep -m1 "$DOMAIN" ~/.git-credentials)
+      if [[ "$?" -eq "0" ]]; then
+         credentials=$(echo "$line" | sed -r 's|https?://(\w+):(\w+)@[[:alnum:]\.]+|\1:\2|g')
+         USER=$(echo "$credentials" | cut -d ":" -f 1)
+         PASSWORD=$(echo "$credentials" | cut -d ":" -f 2)
+      fi
+   fi
+}
+
+scan_args() {
+   if [[ "$#" -eq 0 ]]; then
+      usage 1
+   fi
+
+   ROOMS=()
+   while [[ $# -gt 0 ]]; do
+      if [[ "$1" == "-u" || "$1" == "--user" ]]; then
+         shift
+         USER="$1"
+      elif [[ "$1" == "-p" || "$1" == "--password" ]]; then
+         shift
+         PASSWORD="$1"
+      elif [[ "$1" == "-i" || "$1" == "--uri" ]]; then
+         shift
+         URI="$1"
+      elif [[ "$1" == "-d" || "$1" == "--domain" ]]; then
+         shift
+         DOMAIN="$1"
+      elif [[ "$1" == "-r" || "$1" == "--room" ]]; then
+         shift
+         ROOMS+=("'$1'")
+      else
+         ARGS+=("$1")
+      fi
+      shift
+   done
+   if [[ -n $ARGS ]]; then
+      if [[ "${#ARGS[@]}" -ne 1 ]]; then
+         usage 1
+      fi
+   else
+      if [[ -z "$URI" || -z "$ROOMS" ]]; then
+         usage 1
+      fi
+   fi
+   if [[ -n "$URI" && -z "$DOMAIN" ]]; then
+      DOMAIN=$(echo "$URI" | awk -F. '{printf("%s.%s", $(NF-1),$NF)}')
+   fi
+   if [[ -z "$USER" || -z "$PASSWORD" ]]; then
+      use_git_credentials
+   fi
+   if [[ -n "$ROOMS" ]]; then
+      ROOMS=$(IFS=, printf "%s", ${ROOMS[@]})
+      ROOMS=${ROOMS::-1}
+      ROOMS="[$ROOMS]"
+   fi
+}
+
+cleanup() {
+   sleep 1
+   rm -f "$CONFIG" 2>/dev/null
+}
+
+ROOT=$(git rev-parse --show-toplevel)
+TEMPLATE=$ROOT/cfg/echo-test-template.cfg
+
+scan_args "$@"
+
+trap cleanup SIGINT SIGHUP EXIT
+
+if [[ "${#ARGS[@]}" -eq 1 ]]; then
+   TEMPLATE="${#ARGS[0]}"
+   if [[ ! -f "$TEMPLATE" ]]; then
+      echo "Could not find config file: $TEMPLATE"
+      exit 1
+   fi
+   if [ -z "$DOMAIN" ]; then
+      DOMAIN=$(grep "'domain':" $TEMPLATE | sed -r "s/\s*'domain': '([[:alnum:]\.]+)'.*/\1/g")
+   fi
+fi
+
+content=$(cat $TEMPLATE)
+
+if [[ "${#ARGS[@]}" -eq 0 ]]; then
+   content=$(echo "$content" | sed -r s/USER/$USER/g)
+   content=$(echo "$content" | sed -r s/PASSWORD/$PASSWORD/g)
+   content=$(echo "$content" | sed -r "s|URI|$URI|g")
+   content=$(echo "$content" | sed -r s/DOMAIN/$DOMAIN/g)
+   content=$(echo "$content" | sed -r s/ROOMS/$ROOMS/g)
+fi
+
+CONFIG=$(mktemp)
+echo "$content" > $CONFIG
+$ROOT/tools/matrix-bot -c "$CONFIG"

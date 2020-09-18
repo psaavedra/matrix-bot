@@ -44,11 +44,15 @@ setup(
     url='http://github.com/psaavedra/matrix-bot',
     packages=find_packages(),
     package_data={
-        "matrixbot": [ "../cfg/matrix-bot.cfg.example" ]
+        "matrixbot": [
+            "../cfg/matrix-bot.cfg.example",
+            "../cfg/echo-test-template.cfg"
+        ]
     },
     scripts=[
         "tools/matrix-bot",
         "tools/matrix-subscriber",
+        "tools/matrix-echo",
     ],
     zip_safe=False,
     install_requires=[
