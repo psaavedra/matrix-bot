@@ -111,7 +111,7 @@ class WKBotsFeederPlugin:
                     'failed': failed,
                     'last_buildjob': build['number'],
                     'last_comments': build['sourceStamp']['changes'][0]['comments'],
-                    'recovery': 'failed' in builder and not failed
+                    'recovery': 'failed' in builder and builder['failed'] and not failed
                 })
 
                 if self.should_send_message(builder, failed):
