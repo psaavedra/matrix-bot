@@ -73,7 +73,7 @@ class WKBotsFeederPlugin:
             self.bot.send_html(room_id, message, msgtype="m.notice")
 
     def should_send_message(self, builder, failed):
-        return failed or builder['only_failures'] or (builder['notify_recoveries'] and builder['recovery'])
+        return failed or (not builder['only_failures']) or (builder['notify_recoveries'] and builder['recovery'])
 
     def build_failed(self, builder, build):
         return not self.build_succeeded(builder, build)
