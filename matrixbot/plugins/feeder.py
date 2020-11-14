@@ -17,7 +17,7 @@ class FeederPlugin:
         self.settings = settings
         self.logger.info("FeederPlugin loaded (%(name)s)" % settings)
         self.timestamp = {}
-        for feed in self.settings["feeds"].keys():
+        for feed in list(self.settings["feeds"].keys()):
             self.timestamp[feed] = utcnow()
         self.lasttime = time.time()
         self.period = self.settings.get('period', 60)
@@ -33,16 +33,16 @@ class FeederPlugin:
         res = """%s%s%s""" % (title, author, link)
         return res
 
-    def async(self, handler):
-        self.logger.debug("FeederPlugin async")
+    def dispatch(self, handler):
+        self.logger.debug("FeederPlugin dispatch")
         now = time.time()
         if now < self.lasttime + self.period:
             return  # Feeder is only updated each 'period' time
         self.lasttime = now
 
         res = []
-        for feed_name, feed_url in self.settings["feeds"].iteritems():
-            self.logger.debug("FeederPlugin async: Fetching %s ..." % feed_name)
+        for feed_name, feed_url in list(self.settings["feeds"].items()):
+            self.logger.debug("FeederPlugin dispatch: Fetching %s ..." % feed_name)
             try:
                 feed = feedparser.parse(feed_url)
                 updated = feed.get('feed',{}).get(
@@ -64,10 +64,10 @@ class FeederPlugin:
         if len(res) == 0:
             return
 
-        res = map(
+        res = list(map(
             self.pretty_entry,
             res
-        )
+        ))
         message = "\n".join(res)
         for room_id in self.settings["rooms"]:
             room_id = self.bot.get_real_room_id(room_id)

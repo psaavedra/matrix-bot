@@ -4,8 +4,8 @@ import os
 import pytz
 import requests
 import sys
+import urllib.request, urllib.parse, urllib.error
 import time
-import urllib
 
 if os.path.dirname(__file__) == "matrixbot/plugins":
     sys.path.append(os.path.abspath("."))
@@ -21,7 +21,7 @@ class WKBotsFeederPlugin:
         self.bot = bot
         self.settings = settings
         self.logger.info("WKBotsFeederPlugin loaded (%(name)s)" % settings)
-        for builder_name, builder in self.settings["builders"].iteritems():
+        for builder_name, builder in list(self.settings["builders"].items()):
             if 'builder_name' not in builder:
                 builder['builder_name'] = builder_name
             builder['last_buildjob'] = -1
@@ -72,17 +72,16 @@ class WKBotsFeederPlugin:
         ret = requests.get(url).json()
         return ret['builds'][0]
 
-    def async(self, handler=None):
-        self.logger.debug("WKBotsFeederPlugin async")
-
+    def dispatch(self, handler=None):
+        self.logger.debug("WKBotsFeederPlugin dispatch")
         now = time.time()
         if now < self.lasttime + self.period:
             return  # Feeder is only updated each 'period' time
         self.lasttime = now
 
         res = []
-        for builder_name, builder in self.settings["builders"].iteritems():
-            self.logger.debug("WKBotsFeederPlugin async: Fetching %s ..." % builder_name)
+        for builder_name, builder in list(self.settings["builders"].items()):
+            self.logger.debug("WKBotsFeederPlugin dispatch: Fetching %s ..." % builder_name)
             try:
                 build = self.get_last_build(builder)
                 if builder['last_buildjob'] >= build['number']:
