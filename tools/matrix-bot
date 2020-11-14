@@ -36,7 +36,7 @@ if __name__ == '__main__':
             m.sync(ignore=True) # Ignoring pending old messages
             while True:
                 m.sync()
-        except Exception, e:
+        except Exception as e:
             logger.error("Unexpected error: %s" % e)
             logger.error("Unexpected error: %s" % traceback.print_exc())
             time.sleep(10)

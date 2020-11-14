@@ -4,9 +4,9 @@
 # Maintainer: Pablo Saavedra
 # Contact: saavedra.pablo at gmail.com
 
-from __future__ import absolute_import
 
-import ldap as LDAP
+
+from . import ldap as LDAP
 
 from . import utils
 
@@ -25,8 +25,8 @@ def get_custom_ldap_group_members(ldap_settings, group_name):
         items = conn.search_s(ldap_base, LDAP.SCOPE_SUBTREE,
                               attrlist=['uid'],
                               filterstr=g_ldap_filter)
-        members = map(get_uid, items)
-    except Exception, e:
+        members = list(map(get_uid, items))
+    except Exception as e:
         logger.error("Error getting custom group %s from LDAP: %s" % (group_name, e))
     return members
 
@@ -47,10 +47,10 @@ def get_ldap_group_members(ldap_settings, group_name):
                                                                  ldap_base,
                                                                  ad_filter))
         res = conn.search_s(ldap_base, LDAP.SCOPE_SUBTREE, ad_filter)
-    except Exception, e:
+    except Exception as e:
         logger.error("Error getting group from LDAP: %s" % e)
 
-    return map(get_uid, res[0][1]['uniqueMember'])
+    return list(map(get_uid, res[0][1]['uniqueMember']))
 
 
 def get_ldap_groups(ldap_settings):
@@ -71,8 +71,8 @@ the settings
                                                          ldap_base,
                                                          ldap_filter))
         res = conn.search_s(ldap_base, LDAP.SCOPE_SUBTREE, ldap_filter)
-        return filter((lambda x: x in ldap_groups), map(get_uid, res))
-    except Exception, e:
+        return list(filter((lambda x: x in ldap_groups), list(map(get_uid, res))))
+    except Exception as e:
         logger.error("Error getting groups from LDAP: %s" % e)
 
 
@@ -84,13 +84,13 @@ def get_ldap_groups_members(ldap_settings):
     groups = get_ldap_groups(ldap_settings)
     res = {}
     for g in groups:
-        res[g] = map(map_aliases, get_ldap_group_members(ldap_settings, g))
+        res[g] = list(map(map_aliases, get_ldap_group_members(ldap_settings, g)))
 
     # pending groups to get members. filters for those groups are explicitelly
     # defined in the settings
-    custom_groups = filter((lambda x: x not in groups), ldap_groups)
+    custom_groups = list(filter((lambda x: x not in groups), ldap_groups))
     for g in custom_groups:
-        res[g] = map(map_aliases, get_custom_ldap_group_members(ldap_settings, g))
+        res[g] = list(map(map_aliases, get_custom_ldap_group_members(ldap_settings, g)))
     return res
 
 
