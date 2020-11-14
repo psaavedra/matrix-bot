@@ -9,6 +9,7 @@ import sys
 import logging
 import copy
 import memcache
+import imp
 
 def get_default_settings():
     settings = {}
@@ -60,8 +61,8 @@ def get_default_settings():
 
 
 def debug_conffile(settings, logger):
-    for s in settings.keys():
-        for k in settings[s].keys():
+    for s in list(settings.keys()):
+        for k in list(settings[s].keys()):
             key = "%s.%s" % (s, k)
             value = settings[s][k]
             logger.debug("Configuration setting - %s: %s" % (key, value))
@@ -69,13 +70,13 @@ def debug_conffile(settings, logger):
 
 def setup(conffile, settings):
     try:
-        reload(sys)
+        imp.reload(sys)
         # Forcing UTF-8 in the enviroment:
         sys.setdefaultencoding('utf-8')
         # http://stackoverflow.com/questions/3828723/why-we-need-sys-setdefaultencodingutf-8-in-a-py-scrip
     except Exception:
         pass
-    execfile(conffile)
+    exec(compile(open(conffile).read(), conffile, 'exec'))
 
 
 def create_cache(settings):
@@ -100,7 +101,7 @@ def get_logger():
 def get_command_alias(message, settings):
     prefix = message.strip().split()[0]
     command = " ".join(message.strip().split()[1:])
-    if command in settings["aliases"].keys():
+    if command in list(settings["aliases"].keys()):
         return prefix + " " + settings["aliases"][command]
     return message
 

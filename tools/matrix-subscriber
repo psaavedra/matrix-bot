@@ -34,6 +34,6 @@ if __name__ == '__main__':
         m.join_rooms(silent=True)
         m.invite_subscriptions()
         m.kick_revokations()
-    except Exception, e:
+    except Exception as e:
         logger.error("Unexpected error: %s" % e)
         logger.error("Unexpected error: %s" % traceback.print_exc())

@@ -8,7 +8,7 @@ class BroadcastPlugin:
         self.settings = settings
         self.logger.info("BroadcastPlugin loaded (%(name)s)" % settings)
 
-    def async(self, handler):
+    def dispatch(self, handler):
         return
 
     def command(self, sender, room_id, body, handler):

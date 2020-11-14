@@ -1,7 +1,7 @@
 import json
 import pytz
 import requests
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import time
 import re
 
@@ -30,7 +30,7 @@ class WKTestBotsFeederPlugin:
         self.bot = bot
         self.settings = settings
         self.logger.info("WKTestBotsFeederPlugin loaded (%(name)s)" % settings)
-        for builder_name, builder in self.settings["builders"].iteritems():
+        for builder_name, builder in list(self.settings["builders"].items()):
             if 'builder_name' not in builder:
                 builder['builder_name'] = builder_name
             builder['last_buildjob'] = -1
@@ -44,7 +44,7 @@ class WKTestBotsFeederPlugin:
 
     def pretty_entry(self, builder):
         url = builder['last_buildjob_url_squema'] % {
-            'builder_name': urllib.quote(builder['builder_name']),
+            'builder_name': urllib.parse.quote(builder['builder_name']),
             'last_buildjob': builder['last_buildjob'],
         }
 
@@ -88,16 +88,16 @@ class WKTestBotsFeederPlugin:
     def build_number(self, build):
         return build['number']
 
-    def async(self, handler):
-        self.logger.debug("WKTestBotsFeederPlugin async")
+    def dispatch(self, handler):
+        self.logger.debug("WKTestBotsFeederPlugin dispatch")
         now = time.time()
         if now < self.lasttime + self.period:
             return  # Feeder is only updated each 'period' time
         self.lasttime = now
 
         res = []
-        for builder_name, builder in self.settings["builders"].iteritems():
-            self.logger.debug("WKTestBotsFeederPlugin async: Fetching %s ..." % builder_name)
+        for builder_name, builder in list(self.settings["builders"].items()):
+            self.logger.debug("WKTestBotsFeederPlugin dispatch: Fetching %s ..." % builder_name)
             try:
                 r = requests.get(builder['builds_url_squema'] % builder).json()
                 b = r['-2']

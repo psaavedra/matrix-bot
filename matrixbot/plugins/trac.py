@@ -1,4 +1,4 @@
-import xmlrpclib
+import xmlrpc.client
 from datetime import datetime, timedelta
 from matrixbot import utils
 
@@ -10,7 +10,7 @@ class TracPlugin:
         self.settings = settings
         self.logger.info("TracPlugin loaded (%(name)s)" % settings)
         self.timestamp = datetime.utcnow()
-        self.server = xmlrpclib.ServerProxy(
+        self.server = xmlrpc.client.ServerProxy(
             '%(url_protocol)s://%(url_auth_user)s:%(url_auth_password)s@%(url_domain)s%(url_path)s/login/xmlrpc' % self.settings
         )
 
@@ -23,8 +23,8 @@ class TracPlugin:
     * [severity: %(severity)s] [owner: %(owner)s] [reporter: %(reporter)s] [status: %(status)s]""" % ticket[3]
         return res
 
-    def async(self, handler):
-        self.logger.debug("TracPlugin async")
+    def dispatch(self, handler):
+        self.logger.debug("TracPlugin dispatch")
         server = self.server
 
         d = self.timestamp
@@ -45,10 +45,10 @@ class TracPlugin:
         if len(res) == 0:
             return
 
-        res = map(
+        res = list(map(
             self.pretty_ticket,
             res
-        )
+        ))
         message = "\n".join(res)
         for room_id in self.settings["rooms"]:
             room_id = self.bot.get_real_room_id(room_id)
