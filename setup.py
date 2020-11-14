@@ -59,6 +59,7 @@ setup(
         "feedparser==5.2.1",
         "pytz==2018.9",
         "requests==2.21.0",
+        "python-dateutil==2.8.1",
     ],
 
     download_url='https://github.com/psaavedra/matrix-bot/zipball/master',
