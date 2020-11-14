@@ -33,9 +33,9 @@ class MatrixBot():
         self.domain = self.settings["matrix"]["domain"]
         self.only_local_domain = self.settings["matrix"]["only_local_domain"]
 
-        self.subscriptions_room_ids = settings["subscriptions"].keys()
-        self.revokations_rooms_ids = settings["revokations"].keys()
-        self.allowed_join_rooms_ids = filter(lambda x: x != 'default', settings["allowed-join"].keys())
+        self.subscriptions_room_ids = list(settings["subscriptions"].keys())
+        self.revokations_rooms_ids = list(settings["revokations"].keys())
+        self.allowed_join_rooms_ids = [x for x in list(settings["allowed-join"].keys()) if x != 'default']
         self.default_allowed_join_rooms = settings["allowed-join"]["default"]
 
         self.client = MatrixClient(self.uri)
@@ -45,7 +45,7 @@ class MatrixBot():
         self.rooms = []
         self.room_aliases = {}
         self.plugins = []
-        for plugin in settings['plugins'].itervalues():
+        for plugin in list(settings['plugins'].values()):
             mod = __import__(plugin['module'], fromlist=[plugin['class']])
             klass = getattr(mod, plugin['class'])
             self.plugins.append(klass(self, plugin['settings']))
@@ -70,16 +70,12 @@ class MatrixBot():
             elif item.startswith("+"):
                 group_name = item[1:]
                 groups_members = bot_ldap.get_ldap_groups_members(ldap_settings)
-                if group_name in groups_members.keys():
-                    map(
-                        lambda x: _add_or_remove_user(users, x, append),
-                        groups_members[group_name])
+                if group_name in list(groups_members.keys()):
+                    list([_add_or_remove_user(users, x, append) for x in groups_members[group_name]])
             else:
                 _add_or_remove_user(users, item, append)
 
-        selected_users = filter(
-            lambda x: x not in users["out"],
-            users["in"])
+        selected_users = [x for x in users["in"] if x not in users["out"]]
         return selected_users
 
     def normalize_user_id(self, user_id):
@@ -124,8 +120,8 @@ class MatrixBot():
     def is_room_member(self, room_id, user_id):
         try:
             r = Room(self.client, room_id)
-            return user_id in r.get_joined_members().keys()
-        except Exception, e:
+            return user_id in list(r.get_joined_members().keys())
+        except Exception as e:
             return False
         return False
 
@@ -218,7 +214,7 @@ class MatrixBot():
                 self.logger.info("Call %s action with: %s" % (action, args))
                 self.logger.debug("Call response: %s" % (response))
                 return response
-            except MatrixRequestError, e:
+            except MatrixRequestError as e:
                 self.logger.debug("Fail (%s/%s) in call %s action with: %s - %s" % (attempts, max_attempts, action, args, e))
                 attempts -= 1
                 time.sleep(5)
@@ -266,7 +262,7 @@ class MatrixBot():
             res = self.get_room_members(room_id)
             try:
                 members_list = res.get('chunk', [])
-            except Exception, e:
+            except Exception as e:
                 members_list = []
                 self.logger.debug("Error getting the list of members in room %s: %s" % (room_id, e))
 
@@ -279,7 +275,7 @@ class MatrixBot():
                         self.call_api("kick_user", 1, room_id, self.get_user_id())
                         try:
                             self.call_api("forget_room", 1, room_id)
-                        except Exception, e:
+                        except Exception as e:
                             self.logger.warning("Some kind of error during the forget_room action: %s" % (e))
 
     def get_private_room_with(self, user_id):
@@ -310,7 +306,7 @@ class MatrixBot():
         res = self.get_room_members(room_id)
         try:
             members_list = res.get('chunk', [])
-        except Exception, e:
+        except Exception as e:
             members_list = []
             self.logger.debug(
                 "Error getting the members of the room %s: %s" % (room_id, e))
@@ -397,7 +393,7 @@ class MatrixBot():
                 room_id = room.room_id  # Ensure we are using the actual id not the alias
                 if not silent:
                     self.send_message(room_id, "Mornings!")
-            except MatrixRequestError, e:
+            except MatrixRequestError as e:
                 self.logger.error("Join action in room %s failed: %s" %
                                   (room_id, e))
 
@@ -410,7 +406,7 @@ class MatrixBot():
                 new_room_id = room.room_id  # Ensure we are using the actual id not the alias
                 new_subscriptions_room_ids.append(new_room_id)
                 self.settings["subscriptions"][new_room_id] = self.settings["subscriptions"][old_room_id]
-            except MatrixRequestError, e:
+            except MatrixRequestError as e:
                 self.logger.error("Join action for subscribe users in room %s failed: %s" %
                                   (room_id, e))
         self.subscriptions_room_ids = new_subscriptions_room_ids
@@ -424,7 +420,7 @@ class MatrixBot():
                 new_room_id = room.room_id  # Ensure we are using the actual id not the alias
                 new_revokations_room_ids.append(new_room_id)
                 self.settings["revokations"][new_room_id] = self.settings["revokations"][old_room_id]
-            except MatrixRequestError, e:
+            except MatrixRequestError as e:
                 self.logger.error("Join action for revoke users in room %s failed: %s" %
                                   (room_id, e))
         self.revokations_rooms_ids = new_revokations_room_ids
@@ -467,7 +463,7 @@ class MatrixBot():
 
         try:
             join_room_id = self.get_real_room_id(join_room_id)
-        except Exception, e:
+        except Exception as e:
             msg = '''Room not %s found: %s''' % (join_room_id, e)
             self.send_private_message(sender, msg, room_id)
             self.logger.warning(msg)
@@ -508,7 +504,7 @@ class MatrixBot():
                         msg_dry_mode,
                         res)
                     self.send_private_message(sender, msg_fail, room_id)
-        except MatrixRequestError, e:
+        except MatrixRequestError as e:
             self.logger.warning(e)
 
     def do_list_groups(self, sender, room_id):
@@ -520,14 +516,11 @@ class MatrixBot():
             )
             return
 
-        groups = ', '.join(map(
-            lambda x: "+%s" % x,
-            self.settings["ldap"]["groups"]
-        ))
+        groups = ', '.join(["+%s" % x for x in self.settings["ldap"]["groups"]])
         try:
             msg = "Groups: %s" % groups
             self.send_private_message(sender, msg, room_id)
-        except MatrixRequestError, e:
+        except MatrixRequestError as e:
             self.logger.warning(e)
 
     def do_list_rooms(self, sender, room_id):
@@ -548,14 +541,14 @@ class MatrixBot():
                 continue  # We are looking for rooms with alias
             try:
                 name = self.client.api.get_room_name(r)['name']
-            except Exception, e:
+            except Exception as e:
                 self.logger.debug("Error getting the room name %s: %s" % (r, e))
                 name = "No named"
             rooms_msg_list.append("* %s - %s" % (name, " ".join(aliases)))
         msg += "\n".join(sorted(rooms_msg_list))
         try:
             self.send_private_message(sender, msg, room_id)
-        except MatrixRequestError, e:
+        except MatrixRequestError as e:
             self.logger.warning(e)
 
     def do_list(self, sender, room_id, body):
@@ -570,11 +563,11 @@ class MatrixBot():
         body_arg_list = body.split()[2:]
         selected_users = self._get_selected_users(body_arg_list)
         msg_list = " ".join(
-            map(lambda x: self.normalize_user_id(x), selected_users)
+            [self.normalize_user_id(x) for x in selected_users]
         )
         try:
             self.send_private_message(sender, msg_list, room_id)
-        except MatrixRequestError, e:
+        except MatrixRequestError as e:
             self.logger.warning(e)
 
     def do_count(self, sender, room_id, body):
@@ -591,7 +584,7 @@ class MatrixBot():
         msg_list = "Count: %s" % len(selected_users)
         try:
             self.send_private_message(sender, msg_list, room_id)
-        except MatrixRequestError, e:
+        except MatrixRequestError as e:
             self.logger.warning(e)
 
     def do_help(self, sender, room_id, body, pm=False):
@@ -601,8 +594,7 @@ class MatrixBot():
         else:
             vars_["prefix"] = "%(username)s: " % vars_
 
-        vars_["aliases"] = "\n".join(map(lambda x: "%s: " % vars_["username"] + "%s ==> %s" % x,
-                                     utils.get_aliases(self.settings).items()))
+        vars_["aliases"] = "\n".join(["%s: " % vars_["username"] + "%s ==> %s" % x for x in list(utils.get_aliases(self.settings).items())])
         try:
             self.logger.debug("do_help")
             msg_help = '''Examples:
@@ -639,13 +631,13 @@ Available command aliases:
                     lambda r,m: self.send_private_message(sender, m, None)
                 )
 
-        except MatrixRequestError, e:
+        except MatrixRequestError as e:
             self.logger.warning(e)
 
     def _set_rooms(self, response_dict):
         new_room_list = []
-        for rooms_types in response_dict['rooms'].keys():
-            for room_id in response_dict['rooms'][rooms_types].keys():
+        for rooms_types in list(response_dict['rooms'].keys()):
+            for room_id in list(response_dict['rooms'][rooms_types].keys()):
                 new_room_list.append(room_id)
                 self._set_room_aliases(room_id)
         self.rooms = new_room_list
@@ -659,7 +651,7 @@ Available command aliases:
                 if e['type'] == 'm.room.aliases':
                     aliases = e['content']['aliases']
             self.room_aliases[room_id] = aliases
-        except Exception, e:
+        except Exception as e:
             self.logger.debug("Error getting aliases for %s: %s" % (room_id, e))
             self.logger.debug("Dict: %s" % (room_dict_state))
 
@@ -677,11 +669,11 @@ Available command aliases:
         self.logger.debug("Sync response: %s" % (response))
 
         if not ignore:
-            # async to plugins
+            # dispatch to plugins
             for plugin in self.plugins:
                 try:
-                    plugin.async(self.send_message)
-                except Exception, e:
+                    plugin.dispatch(self.send_message)
+                except Exception as e:
                     self.logger.error(
                         "Error in plugin %s: %s" % (plugin.name, e)
                     )
@@ -692,7 +684,7 @@ Available command aliases:
 
     def sync_invitations(self, invite_events):
         # TODO Clean code and also use only_local_domain setting
-        for room_id, invite_state in invite_events.items():
+        for room_id, invite_state in list(invite_events.items()):
             self.logger.info("+++ (invite) %s" % (room_id))
             for event in invite_state["invite_state"]["events"]:
                 if event["type"] == 'm.room.member' and \
@@ -704,7 +696,7 @@ Available command aliases:
                     self.call_api("join_room", 3, room_id)
 
     def sync_joins(self, join_events):
-        for room_id, sync_room in join_events.items():
+        for room_id, sync_room in list(join_events.items()):
             self.logger.debug(">>> (join) %s" % (room_id))
             for event in sync_room["timeline"]["events"]:
                 self._process_event(room_id, event)

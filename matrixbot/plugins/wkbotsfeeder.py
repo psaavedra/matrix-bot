@@ -1,7 +1,7 @@
 import json
 import pytz
 import requests
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import time
 from datetime import datetime, timedelta
 from matrixbot import utils
@@ -28,7 +28,7 @@ class WKBotsFeederPlugin:
         self.bot = bot
         self.settings = settings
         self.logger.info("WKBotsFeederPlugin loaded (%(name)s)" % settings)
-        for builder_name, builder in self.settings["builders"].iteritems():
+        for builder_name, builder in list(self.settings["builders"].items()):
             if 'builder_name' not in builder:
                 builder['builder_name'] = builder_name
             builder['last_buildjob'] = -1
@@ -51,7 +51,7 @@ class WKBotsFeederPlugin:
 
     def pretty_entry(self, builder):
         url = builder['last_buildjob_url_squema'] % {
-            'builder_name': urllib.quote(builder['builder_name']),
+            'builder_name': urllib.parse.quote(builder['builder_name']),
             'last_buildjob': builder['last_buildjob'],
         }
 
@@ -88,16 +88,16 @@ class WKBotsFeederPlugin:
         else:
             return not 'failed' in build['text']
 
-    def async(self, handler=None):
-        self.logger.debug("WKBotsFeederPlugin async")
+    def dispatch(self, handler=None):
+        self.logger.debug("WKBotsFeederPlugin dispatch")
         now = time.time()
         if now < self.lasttime + self.period:
             return  # Feeder is only updated each 'period' time
         self.lasttime = now
 
         res = []
-        for builder_name, builder in self.settings["builders"].iteritems():
-            self.logger.debug("WKBotsFeederPlugin async: Fetching %s ..." % builder_name)
+        for builder_name, builder in list(self.settings["builders"].items()):
+            self.logger.debug("WKBotsFeederPlugin dispatch: Fetching %s ..." % builder_name)
             try:
                 r = requests.get(builder['builds_url_squema'] % builder).json()
                 build = r['-2']
