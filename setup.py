@@ -56,7 +56,7 @@ setup(
         "matrix-client==0.0.6",
         "python-ldap==3.1.0",
         "python-memcached==1.59",
-        "feedparser==5.2.1",
+        "feedparser==6.0.2",
         "pytz==2018.9",
         "requests==2.21.0",
         "python-dateutil==2.8.1",
