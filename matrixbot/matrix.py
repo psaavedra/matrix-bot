@@ -656,8 +656,8 @@ Available command aliases:
             aliases = []
             room_dict_state = self.client.api.get_room_state(room_id)
             for e in room_dict_state:
-                if e['type'] == 'm.room.aliases':
-                    aliases = e['content']['aliases']
+                if e['type'] == 'm.room.canonical_alias':
+                    aliases = e['content']['alias']
             self.room_aliases[room_id] = aliases
         except Exception, e:
             self.logger.debug("Error getting aliases for %s: %s" % (room_id, e))
