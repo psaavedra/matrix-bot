@@ -551,7 +551,7 @@ class MatrixBot():
             except Exception, e:
                 self.logger.debug("Error getting the room name %s: %s" % (r, e))
                 name = "No named"
-            rooms_msg_list.append("* %s - %s" % (name, " ".join(aliases)))
+            rooms_msg_list.append("* %s - %s" % (name, "".join(aliases)))
         msg += "\n".join(sorted(rooms_msg_list))
         try:
             self.send_private_message(sender, msg, room_id)
