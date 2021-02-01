@@ -35,7 +35,19 @@ EOF
 ./matrix-bot -c test.cfg
 ```
 
+Notes:
 
+The python-ldap is based on OpenLDAP, so you need to have the development files
+(headers) in order to compile the Python module. If you're on Ubuntu, the
+package is called libldap2-dev.
+
+Debian/Ubuntu:
+
+$ sudo apt-get install libsasl2-dev python-dev libldap2-dev libssl-dev
+
+RedHat/CentOS:
+
+$ sudo yum install python-devel openldap-devel
 
 TODO: Add a summary and the explanation of this project
 
