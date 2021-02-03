@@ -6,7 +6,7 @@
 # Contact: saavedra.pablo at gmail.com
 
 import argparse
-import traceback
+import asyncio
 import time
 
 from matrixbot import utils
@@ -29,14 +29,6 @@ logger = utils.create_logger(settings)
 
 ## main ########################################################################
 if __name__ == '__main__':
-    while True:
-        try:
-            m = matrix.MatrixBot(settings)
-            m.join_rooms(silent=True)
-            m.sync(ignore=True) # Ignoring pending old messages
-            while True:
-                m.sync()
-        except Exception as e:
-            logger.error("Unexpected error: %s" % e)
-            logger.error("Unexpected error: %s" % traceback.print_exc())
-            time.sleep(10)
+    m = matrix.MatrixBot(settings)
+    m.join_rooms(silent=True)
+    asyncio.run(m.loop())
