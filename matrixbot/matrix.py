@@ -8,8 +8,10 @@ from matrix_client.api import MatrixRequestError
 from matrix_client.client import MatrixClient
 from matrix_client.room import Room
 
+import asyncio
 # import pprint
 import time
+import traceback
 import re
 
 from . import utils
@@ -258,6 +260,20 @@ class MatrixBot():
                 "Replying command as PM to %s" % user_id)
         return self.call_api("send_message", 3,
                              user_room_id, message)
+
+    async def loop(self):
+        await self.sync(ignore=True)  # Ignoring pending old messages
+        while True:
+            try:
+                task = asyncio.ensure_future(self.sync())
+                await asyncio.sleep(self.period)
+                try:
+                    await task
+                except asyncio.CancelledError as e:
+                    self.logger.error("matrixbot: Sync cancelled: %s" % e)
+            except Exception as e:
+                self.logger.error("matrixbot: Unexpected error: %s" % e)
+                self.logger.error("matrixbot: Unexpected error: %s" % traceback.print_exc())
 
     def leave_empty_rooms(self):
         self.logger.debug("leave_empty_rooms")
@@ -687,28 +703,44 @@ Available command aliases:
     def get_room_aliases(self, room_id):
         return self.room_aliases[room_id] if room_id in self.room_aliases else []
 
-    def sync(self, ignore=False, timeout_ms=30000):
-        response = self.client.api.sync(self.sync_token, timeout_ms, full_state='true')
-        self._set_rooms(response)
-        self.sync_token = response["next_batch"]
-        self.logger.info("!!! sync_token: %s" % (self.sync_token))
-        self.logger.debug("Sync response: %s" % (response))
+    async def _dispatch(self, response):
+        _tasks = []
 
+        if not response:
+            return
+
+        def _(plugin, callback):
+            try:
+                plugin.dispatch(callback)
+            except Exception as e:
+                self.logger.error(
+                    "Error in plugin %s: %s" % (plugin.name, e)
+                )
+
+        for plugin in self.plugins:
+            _tasks.append(asyncio.create_task(_(plugin, self.send_message)))
+        _tasks.append(asyncio.ensure_future(
+            self.sync_invitations(response['rooms']['invite'])))
+        _tasks.append(asyncio.ensure_future(
+            self.sync_joins(response['rooms']['join'])))
+        for task in _tasks:
+            await task
+
+    async def sync(self, ignore=False, timeout_ms=30000):
+        response = None
+        try:
+            response = self.client.api.sync(self.sync_token, timeout_ms, full_state='true')
+            self._set_rooms(response)
+            self.sync_token = response["next_batch"]
+            self.logger.info("!!! sync_token: %s" % (self.sync_token))
+            self.logger.debug("Sync response: %s" % (response))
+        except Exception as e:
+            self.logger.error("Error in sync: %s" % e)
         if not ignore:
-            # dispatch to plugins
-            for plugin in self.plugins:
-                try:
-                    plugin.dispatch(self.send_message)
-                except Exception as e:
-                    self.logger.error(
-                        "Error in plugin %s: %s" % (plugin.name, e)
-                    )
-            # core
-            self.sync_invitations(response['rooms']['invite'])
-            self.sync_joins(response['rooms']['join'])
-        time.sleep(self.period)
+            await self._dispatch(response)
 
-    def sync_invitations(self, invite_events):
+    async def sync_invitations(self, invite_events):
+        _tasks = []
         # TODO Clean code and also use only_local_domain setting
         for room_id, invite_state in list(invite_events.items()):
             self.logger.info("+++ (invite) %s" % (room_id))
@@ -719,15 +751,25 @@ Available command aliases:
                         event["content"]["membership"] == 'invite' and \
                         "sender" in event and \
                         event["sender"].endswith(self.domain):
-                    self.call_api("join_room", 3, room_id)
+                    _tasks.append(asyncio.create_task(
+                        self.call_api("join_room", 3, room_id)
+                    ))
+        for task in _tasks:
+            await task
 
-    def sync_joins(self, join_events):
+
+    async def sync_joins(self, join_events):
+        _tasks = []
         for room_id, sync_room in list(join_events.items()):
             self.logger.debug(">>> (join) %s" % (room_id))
             for event in sync_room["timeline"]["events"]:
-                self._process_event(room_id, event)
+                _tasks.append(asyncio.ensure_future(
+                    self._process_event(room_id, event)
+                ))
+        for task in _tasks:
+            await task
 
-    def _process_event(self, room_id, event):
+    async def _process_event(self, room_id, event):
         if not (
             event["type"] == 'm.room.message'
             and "content" in event
