@@ -29,6 +29,7 @@ def get_default_settings():
         "domain": "matrix.org",
         "rooms": [],
         "only_local_domain": False,
+        "super_users": [],
     }
     settings["ldap"] = {
         "server": "ldap://ldap.local",
@@ -49,6 +50,12 @@ def get_default_settings():
         "default": ""
     }
     settings["plugins"] = {}
+    settings["commands"] = {
+        "list-rooms": {
+            "enable": False,
+            "visible_subset": [],
+        },
+    }
     return settings
 
 
