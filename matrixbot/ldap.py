@@ -74,6 +74,7 @@ the settings
         return list(filter((lambda x: x in ldap_groups), list(map(get_uid, res))))
     except Exception as e:
         logger.error("Error getting groups from LDAP: %s (%s)" % (e, ldap_server))
+    return []
 
 
 def get_ldap_groups_members(ldap_settings):
