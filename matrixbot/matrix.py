@@ -32,11 +32,15 @@ class MatrixBot():
         self.room_ids = settings["matrix"]["rooms"]
         self.domain = self.settings["matrix"]["domain"]
         self.only_local_domain = self.settings["matrix"]["only_local_domain"]
+        self.super_users = settings["matrix"]["super_users"]
 
         self.subscriptions_room_ids = settings["subscriptions"].keys()
         self.revokations_rooms_ids = settings["revokations"].keys()
         self.allowed_join_rooms_ids = filter(lambda x: x != 'default', settings["allowed-join"].keys())
         self.default_allowed_join_rooms = settings["allowed-join"]["default"]
+
+        self.enable_list_rooms_commands = settings["commands"]["list-rooms"]["enable"]
+        self.visible_subset_list_rooms_commands = settings["commands"]["list-rooms"]["visible_subset"]
 
         self.client = MatrixClient(self.uri)
         self.token = self.client.login_with_password(username=self.username,
@@ -538,7 +542,15 @@ class MatrixBot():
                 "do_list_rooms is not allowed for external sender (%s)" % sender
             )
             return
-        msg = "Room list:\n"
+        is_super_user = sender in self.super_users
+        msg = ""
+        if is_super_user:
+            msg = "[*] Your are a super-user"
+            if self.enable_list_rooms_commands:
+                msg = msg + ". Showing full list of rooms.\n\n"
+            else:
+                msg = msg + " but super-user support for this command is DISABLED.\n\n"
+        msg = msg + "Room list:\n"
         rooms = self.get_rooms()
         rooms_msg_list = []
         for r in rooms:
@@ -551,7 +563,21 @@ class MatrixBot():
             except Exception, e:
                 self.logger.debug("Error getting the room name %s: %s" % (r, e))
                 name = "No named"
-            rooms_msg_list.append("* %s - %s" % (name, "".join(aliases)))
+            if self.enable_list_rooms_commands:
+                is_visible_room = False
+                for alias in self.visible_subset_list_rooms_commands:
+                    if alias in aliases:
+                        is_visible_room = True
+                        break
+                if not is_visible_room and not is_super_user:
+                    continue
+            status = ""
+            if self.enable_list_rooms_commands and is_super_user:
+                if is_visible_room:
+                    status = " [visible]"
+                else:
+                    status = " [hidden]"
+            rooms_msg_list.append("* %s - %s%s" % (name, "".join(aliases), status))
         msg += "\n".join(sorted(rooms_msg_list))
         try:
             self.send_private_message(sender, msg, room_id)
