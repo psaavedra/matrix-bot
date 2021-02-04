@@ -1,0 +1,34 @@
+#
+# Minimal configuration for the 'list-rooms' command supporting super-users
+#
+
+settings["DEFAULT"] = {
+   "loglevel": 10,
+   "logfile": "/dev/stdout",
+   "period": 5,
+}
+
+settings["matrix"] = {
+   "uri": "https://localhost.dummy.net",
+   "username": "user",
+   "password": "password",
+   "domain": "dummy.net",
+   "only_local_domain": True,
+   "rooms": [
+     "#test:dummy.net"
+   ],
+   "super_users" : [
+     "@userx:igalia.com",
+     "@usery:igalia.com"
+   ],
+}
+
+settings["commands"] = {
+   "list-rooms": {
+      "enable": True,
+      "visible_subset": [
+        "#alpha:igalia.com",
+        "#beta:igalia.com"
+      ],
+   },
+}
