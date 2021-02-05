@@ -169,7 +169,13 @@ class MatrixBot():
                                       room_id)
             return
 
-        selected_users = self._get_selected_users(body_arg_list)
+        room_members = set(map(lambda x: x['user_id'],
+                               self.get_room_members(target_room_id)["chunk"]))
+
+        if action == "invite_user":
+            selected_users = set(self._get_selected_users(body_arg_list)).difference(room_members)
+        if action == "kick_user":
+            selected_users = room_members.intersection(self._get_selected_users(body_arg_list))
 
         if dry_mode and sender:
             self.send_private_message(
