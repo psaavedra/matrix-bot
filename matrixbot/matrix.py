@@ -257,6 +257,11 @@ class MatrixBot():
                              room_id, message)
 
     def send_private_message(self, user_id, message, room_id=None):
+        # Just add a first case: if the channel is 1-to-1 then reply
+        # directly using this channel
+        if self.is_private_room(room_id, self.get_user_id(), user_id):
+            return self.call_api("send_message", 3, room_id, message)
+
         user_room_id = self.get_private_room_with(user_id)
         if room_id and room_id != user_room_id:
             self.call_api(
