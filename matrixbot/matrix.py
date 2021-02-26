@@ -26,13 +26,15 @@ class MatrixBot():
 
         self.settings = settings
         self.period = settings["DEFAULT"]["period"]
-        self.uri = settings["matrix"]["uri"]
-        self.username = settings["matrix"]["username"].lower()
-        self.password = settings["matrix"]["password"]
-        self.room_ids = settings["matrix"]["rooms"]
-        self.domain = self.settings["matrix"]["domain"]
-        self.only_local_domain = self.settings["matrix"]["only_local_domain"]
-        self.super_users = settings["matrix"]["super_users"]
+
+        matrix = settings.get("matrix", {})
+        self.uri = matrix["uri"]
+        self.username = matrix["username"].lower()
+        self.password = matrix["password"]
+        self.room_ids = matrix["rooms"]
+        self.domain = matrix["domain"]
+        self.only_local_domain = matrix["only_local_domain"]
+        self.super_users = matrix.get("super_users", [])
 
         self.subscriptions_room_ids = settings["subscriptions"].keys()
         self.revokations_rooms_ids = settings["revokations"].keys()
