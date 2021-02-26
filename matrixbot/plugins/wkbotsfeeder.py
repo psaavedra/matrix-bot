@@ -32,8 +32,8 @@ class WKBotsFeederPlugin:
             if 'builder_name' not in builder:
                 builder['builder_name'] = builder_name
             builder['last_buildjob'] = -1
-            set_property(self.settings, builder, "last_buildjob_url_squema")
-            set_property(self.settings, builder, "builds_url_squema")
+            set_property(self.settings, builder, "last_buildjob_url_schema")
+            set_property(self.settings, builder, "builds_url_schema")
             set_property(self.settings, builder, "only_failures", default=True)
             set_property(self.settings, builder, "notify_recoveries", default=True)
             self.logger.info("WKBotsFeederPlugin loaded (%(name)s) builder: " % settings + json.dumps(builder, indent = 4))
@@ -50,10 +50,7 @@ class WKBotsFeederPlugin:
        return ret.format(content=text)
 
     def pretty_entry(self, builder):
-        url = builder['last_buildjob_url_squema'] % {
-            'builder_name': urllib.quote(builder['builder_name']),
-            'last_buildjob': builder['last_buildjob'],
-        }
+        url = self.last_build_url(builder)
 
         res = "%(builder_name)s " % builder
         res += "(<a href='%s'>" % url
@@ -67,6 +64,11 @@ class WKBotsFeederPlugin:
             res += self.format("success", color="green", strong="")
         return res
 
+    def last_build_url(self, builder):
+        builderid = int(builder['builderid'])
+        build_number = int(builder['last_buildjob'])
+        return builder['last_buildjob_url_schema'] % (builderid, build_number)
+
     def send(self, message):
         for room_id in self.settings["rooms"]:
             room_id = self.bot.get_real_room_id(room_id)
@@ -75,18 +77,15 @@ class WKBotsFeederPlugin:
     def should_send_message(self, builder, failed):
         return failed or (not builder['only_failures']) or (builder['notify_recoveries'] and builder['recovery'])
 
-    def build_failed(self, builder, build):
+    def build_failed(self, build):
         return not self.build_succeeded(builder, build)
 
-    def build_succeeded(self, builder, build):
-        if 'target_step' in builder:
-            target_step = builder['target_step']
-            for each in build['steps']:
-                if each['name'] == target_step['name'] and target_step['text'] in each['text']:
-                    return True
-            return False
-        else:
-            return not 'failed' in build['text']
+    def build_succeeded(self, build):
+        return 'state_string' in build and build['state_string'] == "build successful"
+
+    def get_last_build(self, builder):
+        ret = requests.get(builder['builds_url_schema'] % builder['builderid']).json()
+        return ret['builds'][0]
 
     def async(self, handler=None):
         self.logger.debug("WKBotsFeederPlugin async")
@@ -99,8 +98,7 @@ class WKBotsFeederPlugin:
         for builder_name, builder in self.settings["builders"].iteritems():
             self.logger.debug("WKBotsFeederPlugin async: Fetching %s ..." % builder_name)
             try:
-                r = requests.get(builder['builds_url_squema'] % builder).json()
-                build = r['-2']
+                build = self.get_last_build(builder)
 
                 if builder['last_buildjob'] >= build['number']:
                     continue
@@ -110,7 +108,6 @@ class WKBotsFeederPlugin:
                 builder.update({
                     'failed': failed,
                     'last_buildjob': build['number'],
-                    'last_comments': build['sourceStamp']['changes'][0]['comments'],
                     'recovery': 'failed' in builder and builder['failed'] and not failed
                 })
 
