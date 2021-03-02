@@ -36,6 +36,8 @@ class MatrixBot():
         self.only_local_domain = matrix["only_local_domain"]
         self.super_users = matrix.get("super_users", [])
 
+        self.commands_enable = settings.get("commands", {}).get("enable", True)
+
         self.subscriptions_room_ids = settings["subscriptions"].keys()
         self.revokations_rooms_ids = settings["revokations"].keys()
         self.allowed_join_rooms_ids = filter(lambda x: x != 'default', settings["allowed-join"].keys())
@@ -749,35 +751,36 @@ Available command aliases:
         sender = event["sender"]
         body = event["content"]["body"]
 
-        if sender == self.get_user_id():
-            return
+        if self.commands_enable:
+            if sender == self.get_user_id():
+                return
 
-        is_pm = self.is_private_room(room_id, self.get_user_id())
+            is_pm = self.is_private_room(room_id, self.get_user_id())
 
-        if is_pm and not self.is_explicit_call(body):
-            body = "%s: " % self.username.lower() + body
+            if is_pm and not self.is_explicit_call(body):
+                body = "%s: " % self.username.lower() + body
 
-        body = utils.get_command_alias(body, self.settings)
-        if not body.lower().strip().startswith("%s" % self.username):
-            return
-        if self.is_command(body, "invite"):
-            self.do_command("invite_user", sender, room_id, body)
-        elif self.is_command(body, "kick"):
-            self.do_command("kick_user", sender, room_id, body)
-        elif self.is_command(body, "join"):
-            self.do_join(sender, room_id, body)
-        elif self.is_command(body, "count"):
-            self.do_count(sender, room_id, body)
-        elif self.is_command(body, "list"):
-            self.do_list(sender, room_id, body)
-        elif self.is_command(body, "list-rooms"):
-            self.do_list_rooms(sender, room_id)
-        elif self.is_command(body, "list-groups"):
-            self.do_list_groups(sender, room_id)
-        elif self.is_command(body, "help"):
-            self.do_help(sender, room_id, body, is_pm)
-        elif len (body.split()[1:]) == 0 :
-            self.do_help(sender, room_id, body, is_pm)
+            body = utils.get_command_alias(body, self.settings)
+            if not body.lower().strip().startswith("%s" % self.username):
+                return
+            if self.is_command(body, "invite"):
+                self.do_command("invite_user", sender, room_id, body)
+            elif self.is_command(body, "kick"):
+                self.do_command("kick_user", sender, room_id, body)
+            elif self.is_command(body, "join"):
+                self.do_join(sender, room_id, body)
+            elif self.is_command(body, "count"):
+                self.do_count(sender, room_id, body)
+            elif self.is_command(body, "list"):
+                self.do_list(sender, room_id, body)
+            elif self.is_command(body, "list-rooms"):
+                self.do_list_rooms(sender, room_id)
+            elif self.is_command(body, "list-groups"):
+                self.do_list_groups(sender, room_id)
+            elif self.is_command(body, "help"):
+                self.do_help(sender, room_id, body, is_pm)
+            elif len (body.split()[1:]) == 0 :
+                self.do_help(sender, room_id, body, is_pm)
 
         # push to plugins
         for plugin in self.plugins:
