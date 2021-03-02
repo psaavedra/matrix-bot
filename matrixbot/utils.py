@@ -10,6 +10,8 @@ import logging
 import copy
 import memcache
 
+puts = sys.stdout.write
+
 def get_default_settings():
     settings = {}
     settings["DEFAULT"] = {
@@ -118,4 +120,4 @@ class MockBot:
         return room_id or 0
 
     def send_html(self, room_id, message, **kwargs):
-        sys.stdout.write("Room #{}: {}".format(room_id, message))
+        puts("Room #{}: {}".format(room_id, message))

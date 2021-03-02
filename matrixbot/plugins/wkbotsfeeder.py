@@ -15,7 +15,7 @@ if os.path.dirname(__file__) == "matrixbot/plugins":
 
 from matrixbot import utils
 
-put = sys.stdout.write
+puts = utils.puts
 
 
 def utcnow():
@@ -166,7 +166,7 @@ def test_async(plugin):
     print("Ok")
 
 def test_can_fetch_last_build(plugin):
-    put("test_can_fetch_last_build: ")
+    puts("test_can_fetch_last_build: ")
     builder = plugin.settings['builders']["GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"]
     build = plugin.get_last_build(builder)
     assert(build)
