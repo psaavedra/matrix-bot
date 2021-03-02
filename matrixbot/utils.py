@@ -51,6 +51,7 @@ def get_default_settings():
     }
     settings["plugins"] = {}
     settings["commands"] = {
+        "enable": True,
         "list-rooms": {
             "enable": False,
             "visible_subset": [],

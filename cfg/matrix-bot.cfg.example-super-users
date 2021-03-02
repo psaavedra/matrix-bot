@@ -24,6 +24,7 @@ settings["matrix"] = {
 }
 
 settings["commands"] = {
+   "enable": True,
    "list-rooms": {
       "enable": True,
       "visible_subset": [
