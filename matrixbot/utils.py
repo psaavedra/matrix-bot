@@ -10,6 +10,9 @@ import logging
 import copy
 import memcache
 
+from datetime import datetime, timedelta
+from dateutil import parser
+
 puts = sys.stdout.write
 
 def get_default_settings():
@@ -110,6 +113,30 @@ def get_command_alias(message, settings):
 def get_aliases(settings):
     res = copy.copy(settings["aliases"])
     return res
+
+
+def set_property(settings, builder, setting, default=None):
+    if setting in builder:
+        return
+    if setting in settings:
+        builder[setting] = settings[setting]
+    else:
+        builder[setting] = default
+
+
+def utcnow():
+    now = datetime.utcnow()
+    return now.replace(tzinfo=pytz.utc)
+
+
+def pp(text, **kwargs):
+   ret="{content}"
+   for key in kwargs:
+      if key == "color":
+         ret = ret.format(content="<font color='{color}'>{{content}}</font>".format(color=kwargs['color']))
+      else:
+         ret = ret.format(content="<{tag}>{{content}}</{tag}>".format(tag=key))
+   return ret.format(content=text)
 
 
 class MockBot:
