@@ -39,7 +39,7 @@ class MatrixBot():
         self.subscriptions_room_ids = settings["subscriptions"].keys()
         self.revokations_rooms_ids = settings["revokations"].keys()
         self.allowed_join_rooms_ids = filter(lambda x: x != 'default', settings["allowed-join"].keys())
-        self.default_allowed_join_rooms = settings["allowed-join"]["default"]
+        self.default_allowed_join_rooms = settings.get("allowed-join", {}).get("default", "")
 
         self.enable_list_rooms_commands = settings["commands"]["list-rooms"]["enable"]
         self.visible_subset_list_rooms_commands = settings["commands"]["list-rooms"]["visible_subset"]
