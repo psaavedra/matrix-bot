@@ -83,7 +83,13 @@ def create_cache(settings):
     return cache
 
 def create_logger(settings):
-    hdlr = logging.FileHandler(settings["DEFAULT"]["logfile"])
+    logfile = settings["DEFAULT"]["logfile"]
+    if (logfile == "/dev/stdout"):
+        hdlr = logging.StreamHandler(sys.stdout)
+    elif (logfile == "/dev/stderr"):
+        hdlr = logging.StreamHandler(sys.stderr)
+    else:
+        hdlr = logging.FileHandler(logfile)
     hdlr.setFormatter(logging.Formatter('%(levelname)s %(asctime)s %(message)s'))
     logger = logging.getLogger('matrixbot')
     logger.addHandler(hdlr)
