@@ -6,7 +6,7 @@
 
 
 
-from . import ldap as LDAP
+import ldap as LDAP
 
 from . import utils
 
@@ -15,7 +15,7 @@ def get_custom_ldap_group_members(ldap_settings, group_name):
     logger = utils.get_logger()
     ldap_server = ldap_settings["server"]
     ldap_base = ldap_settings["base"]
-    get_uid = lambda x: x[1]["uid"][0]
+    get_uid = lambda x: x[1]["uid"][0].decode("utf-8")
     members = []
     try:
         conn = LDAP.initialize(ldap_server)
@@ -38,7 +38,7 @@ def get_ldap_group_members(ldap_settings, group_name):
     ldap_server = ldap_settings["server"]
     ldap_base = ldap_settings["groups_base"]
     ldap_filter = "(&%s(%s={group_name}))" % (ldap_settings["groups_filter"], ldap_settings["groups_id"])
-    get_uid = lambda x: x.split(",")[0].split("=")[1]
+    get_uid = lambda x: x.decode("utf-8").split(",")[0].split("=")[1]
     try:
         ad_filter = ldap_filter.replace('{group_name}', group_name)
         conn = LDAP.initialize(ldap_server)
@@ -64,7 +64,7 @@ the settings
     ldap_base = ldap_settings["groups_base"]
     ldap_filter = ldap_settings["groups_filter"]
     ldap_groups = ldap_settings["groups"]
-    get_uid = lambda x: x[1]["cn"][0]
+    get_uid = lambda x: x[1]["cn"][0].decode("utf-8")
     try:
         conn = LDAP.initialize(ldap_server)
         logger.debug("Searching groups: %s - %s - %s" % (ldap_server,
@@ -73,7 +73,7 @@ the settings
         res = conn.search_s(ldap_base, LDAP.SCOPE_SUBTREE, ldap_filter)
         return list(filter((lambda x: x in ldap_groups), list(map(get_uid, res))))
     except Exception as e:
-        logger.error("Error getting groups from LDAP: %s" % e)
+        logger.error("Error getting groups from LDAP: %s (%s)" % (e, ldap_server))
 
 
 def get_ldap_groups_members(ldap_settings):
