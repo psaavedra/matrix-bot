@@ -125,15 +125,15 @@ def selftest():
     }
     plugin = WKBotsFeederPlugin(utils.MockBot(), settings)
 
-    test_async(plugin)
+    test_dispatch(plugin)
     test_can_fetch_last_build(plugin)
 
-def test_async(plugin):
-    print("test_async: ")
+def test_dispatch(plugin):
+    print("test_dispatch: ")
     logging.basicConfig(level = logging.DEBUG)
     plugin.lasttime = 0
     plugin.period = 0
-    plugin.async()
+    plugin.dispatch()
     print("")
     print("Ok")
 
