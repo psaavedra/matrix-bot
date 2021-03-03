@@ -27,8 +27,8 @@ class EchoPlugin:
         self.logger.info(message)
         self.bot.send_html(room_id, message, msgtype="m.notice")
 
-    def async(self, handler):
-        self.logger.debug("Echo::async")
+    def dispatch(self, handler):
+        self.logger.debug("Echo::dispatch")
 
         # Exit if now is within time interval.
         now = time.time()
