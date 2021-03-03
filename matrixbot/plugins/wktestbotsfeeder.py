@@ -1,27 +1,20 @@
+#!/usr/bin/env python2
+
 import json
+import os
 import pytz
-import requests
-import urllib
-import time
 import re
+import requests
+import sys
+import time
+import urllib
 
-from datetime import datetime, timedelta
+if os.path.dirname(__file__) == "matrixbot/plugins":
+    sys.path.append(os.path.abspath("."))
+
 from matrixbot import utils
-from dateutil import parser
 
-def utcnow():
-    now = datetime.utcnow()
-    return now.replace(tzinfo=pytz.utc)
-
-
-def set_property(settings, builder, setting, default=None):
-    if setting in builder:
-        return
-    if setting in settings:
-        builder[setting] = settings[setting]
-    else:
-        builder[setting] = default
-
+pp, set_property = utils.pp, utils.set_property
 
 class WKTestBotsFeederPlugin:
     def __init__(self, bot, settings):
@@ -34,61 +27,52 @@ class WKTestBotsFeederPlugin:
             if 'builder_name' not in builder:
                 builder['builder_name'] = builder_name
             builder['last_buildjob'] = -1
-            set_property(self.settings, builder, "last_buildjob_url_squema")
-            set_property(self.settings, builder, "builds_url_squema")
+            set_property(self.settings, builder, "last_buildjob_url_schema")
+            set_property(self.settings, builder, "builds_url_schema")
             set_property(self.settings, builder, "only_failures", default=True)
             set_property(self.settings, builder, "notify_recoveries", default=True)
             self.logger.info("WKTestBotsFeederPlugin loaded (%(name)s) builder: " % settings + json.dumps(builder, indent = 4))
         self.lasttime = time.time()
         self.period = self.settings.get('period', 60)
 
-    def pretty_entry(self, builder):
-        url = builder['last_buildjob_url_squema'] % {
-            'builder_name': urllib.quote(builder['builder_name']),
-            'last_buildjob': builder['last_buildjob'],
-        }
+    def pretty_entry(self, builder, summary):
+        url = self.last_build_url(builder)
 
         res = "%(builder_name)s " % builder
         res += "(<a href='%s'>" % url
         res += "%(last_buildjob)s </a>): " % builder
 
         if builder['recovery']:
-            res += "<p><font color='green'><strong>%s</strong></font> (%s)</p>" % ('Recovery', builder['summary'])
-            return res
-
-        if builder['failed']:
-            res += "<p><font color='red'><strong>%s</strong></font> (%s)</p>" % ('Exiting early', builder['summary'])
+            res += "<p>%s (%s)</p>" % (pp("Recovery", color="green", strong=True),
+                                       pp(summary, color="green"))
+        elif builder['failed']:
+            res += "<p>%s (%s)</p>" % (pp("Exiting early", color="red", strong=True),
+                                       pp(summary, color="red"))
         else:
-            res += "<p><font color='green'><strong>%s</strong></font> (%s)</p>" % ('Success', builder['summary'])
+            res += "<p>%s (%s)</p>" % (pp("Success", color="green", strong=True),
+                                       pp(summary, color="green"))
         return res
 
-    def sent(self, message):
+    def last_build_url(self, builder):
+        builderid = int(builder['builderid'])
+        build_number = int(builder['last_buildjob'])
+        return builder['last_buildjob_url_schema'] % (builderid, build_number)
+
+    def send(self, message):
         for room_id in self.settings["rooms"]:
             room_id = self.bot.get_real_room_id(room_id)
             self.bot.send_html(room_id, message, msgtype="m.notice")
 
     def has_failed(self, build):
-        for each in build['text']:
-            if (re.search('exiting early', each, re.IGNORECASE)):
-                return True
-        return False
+        return re.search('exiting early', build['state_string'], re.IGNORECASE) != None
 
     def was_exception(self, build):
-        for each in build['text']:
-            if (re.search('exception', each, re.IGNORECASE)):
-                return True
-        return False
+        return re.search('exception', build['state_string'], re.IGNORECASE) != None
 
     def summary(self, build):
-        return " ".join(build['text'])
+        return build['state_string']
 
-    def comments(self, build):
-        return build['sourceStamp']['changes'][0]['comments']
-
-    def build_number(self, build):
-        return build['number']
-
-    def async(self, handler):
+    def async(self, handler = None):
         self.logger.debug("WKTestBotsFeederPlugin async")
         now = time.time()
         if now < self.lasttime + self.period:
@@ -99,35 +83,30 @@ class WKTestBotsFeederPlugin:
         for builder_name, builder in self.settings["builders"].iteritems():
             self.logger.debug("WKTestBotsFeederPlugin async: Fetching %s ..." % builder_name)
             try:
-                r = requests.get(builder['builds_url_squema'] % builder).json()
-                b = r['-2']
-                if builder['last_buildjob'] >= self.build_number(b):
+                build = self.get_last_build(builder)
+                if builder['last_buildjob'] >= int(build['number']):
                     continue
 
-                if ('failed' in builder and builder['failed']) and not failed:
-                    builder["recovery"] = not self.was_exception(b)
-                else:
-                    builder["recovery"] = False
+                failed = self.has_failed(build)
+                builder.update({
+                    'failed': failed,
+                    'last_buildjob': int(build['number']),
+                    'recovery': 'failed' in builder and builder['failed'] and not failed and not self.was_exception(build),
+                })
 
-                builder["failed"] = self.has_failed(b)
-                builder["last_buildjob"] = self.build_number(b)
-                builder["last_comments"] = self.comments(b)
-
-                send_message = False
-                if not builder['only_failures']:
-                    send_message = True
-                if builder["failed"]:
-                    send_message = True
-                if builder["notify_recoveries"] and builder["recovery"]:
-                    send_message = True
-
-                if send_message:
-                    builder["summary"] = self.summary(b)
-                    message = self.pretty_entry(builder)
-                    self.sent(message)
+                if self.should_send_message(builder, failed):
+                    message = self.pretty_entry(builder, self.summary(build))
+                    self.send(message)
             except Exception as e:
                 self.logger.error("WKTestBotsFeederPlugin got error in builder %s: %s" % (builder_name,e))
 
+    def should_send_message(self, builder, failed):
+        return failed or (not builder['only_failures']) or (builder['notify_recoveries'] and builder['recovery'])
+
+    def get_last_build(self, builder):
+        url = builder['builds_url_schema'] % builder['builderid']
+        ret = requests.get(url).json()
+        return ret['builds'][0]
 
     def command(self, sender, room_id, body, handler):
         self.logger.debug("WKTestBotsFeederPlugin command")
@@ -136,3 +115,44 @@ class WKTestBotsFeederPlugin:
     def help(self, sender, room_id, handler):
         self.logger.debug("WKTestBotsFeederPlugin help")
         return
+
+
+def selftest():
+    print("selftest: " + os.path.basename(__file__))
+    settings = {
+        "name": "wk",
+        "last_buildjob_url_schema": "https://build.webkit.org/#/builders/%d/builds/%d",
+        "builds_url_schema": "https://build.webkit.org/api/v2/builders/%d/builds?complete=true&order=-number&limit=1",
+        "only_failures": False,
+        "rooms": ["0"],
+        "builders": {
+            "GTK-Linux-64-bit-Debug-Tests": {
+                "builderid": 63,
+            },
+        },
+    }
+    plugin = WKTestBotsFeederPlugin(utils.MockBot(), settings)
+
+    test_async(plugin)
+    test_can_fetch_last_build(plugin)
+
+def test_async(plugin):
+    print("test_async: ")
+    import logging
+    logging.basicConfig(level = logging.DEBUG)
+    plugin.lasttime = 0
+    plugin.period = 0
+    plugin.async()
+    print("")
+    print("Ok")
+
+def test_can_fetch_last_build(plugin):
+    puts = sys.stdout.write
+    puts("test_can_fetch_last_build: ")
+    builder = plugin.settings['builders']["GTK-Linux-64-bit-Debug-Tests"]
+    build = plugin.get_last_build(builder)
+    assert(build)
+    print("Ok")
+
+if __name__ == '__main__':
+    selftest()

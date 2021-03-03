@@ -7,30 +7,12 @@ import sys
 import time
 import urllib
 
-from datetime import datetime, timedelta
-from dateutil import parser
-
 if os.path.dirname(__file__) == "matrixbot/plugins":
     sys.path.append(os.path.abspath("."))
 
 from matrixbot import utils
 
 puts = utils.puts
-
-
-def utcnow():
-    now = datetime.utcnow()
-    return now.replace(tzinfo=pytz.utc)
-
-
-def set_property(settings, builder, setting, default=None):
-    if setting in builder:
-        return
-    if setting in settings:
-        builder[setting] = settings[setting]
-    else:
-        builder[setting] = default
-
 
 class WKBotsFeederPlugin:
     def __init__(self, bot, settings):
@@ -50,15 +32,6 @@ class WKBotsFeederPlugin:
             self.logger.info("WKBotsFeederPlugin loaded (%(name)s) builder: " % settings + json.dumps(builder, indent = 4))
         self.lasttime = time.time()
         self.period = self.settings.get('period', 60)
-
-    def format(self, text, **kwargs):
-       ret="{content}"
-       for key in kwargs:
-          if key == "color":
-             ret = ret.format(content="<font color='{color}'>{{content}}</font>".format(color=kwargs['color']))
-          else:
-             ret = ret.format(content="<{tag}>{{content}}</{tag}>".format(tag=key))
-       return ret.format(content=text)
 
     def pretty_entry(self, builder):
         url = self.last_build_url(builder)
