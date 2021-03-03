@@ -37,15 +37,25 @@ class MatrixBot():
         self.only_local_domain = matrix["only_local_domain"]
         self.super_users = matrix.get("super_users", [])
 
-        self.commands_enable = settings.get("commands", {}).get("enable", True)
+        self.commands_enable = settings\
+            .get("commands", {})\
+            .get("enable", True)
 
-        self.subscriptions_room_ids = list(settings["subscriptions"].keys())
-        self.revokations_rooms_ids = list(settings["revokations"].keys())
+        self.subscriptions_room_ids = settings.get("subscriptions", {}).keys()
+        self.revokations_rooms_ids = settings.get("revokations", {}).keys()
         self.allowed_join_rooms_ids = [x for x in list(settings["allowed-join"].keys()) if x != 'default']
-        self.default_allowed_join_rooms = settings.get("allowed-join", {}).get("default", "")
+        self.default_allowed_join_rooms = settings\
+            .get("allowed-join", {})\
+            .get("default", "")
 
-        self.enable_list_rooms_commands = settings["commands"]["list-rooms"]["enable"]
-        self.visible_subset_list_rooms_commands = settings["commands"]["list-rooms"]["visible_subset"]
+        self.enable_list_rooms_commands = settings\
+            .get("commands", {})\
+            .get("list-rooms", {})\
+            .get("enable", False)
+        self.visible_subset_list_rooms_commands = settings\
+            .get("commands", {})\
+            .get("list-rooms", {})\
+            .get("visible_subset", [])
 
         self.client = MatrixClient(self.uri)
         self.token = self.client.login_with_password(username=self.username,
