@@ -70,7 +70,10 @@ def debug_conffile(settings, logger):
     for s in list(settings.keys()):
         for k in list(settings[s].keys()):
             key = "%s.%s" % (s, k)
-            value = settings[s][k]
+            if k in ["username", "password"]:
+                value = "XXXXXXXX"
+            else:
+                value = settings[s][k]
             logger.debug("Configuration setting - %s: %s" % (key, value))
 
 
