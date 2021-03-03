@@ -12,6 +12,7 @@ if os.path.dirname(__file__) == "matrixbot/plugins":
 
 from matrixbot import utils
 
+set_property = utils.set_property
 puts = utils.puts
 
 class WKBotsFeederPlugin:
