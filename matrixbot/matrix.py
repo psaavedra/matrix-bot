@@ -15,6 +15,7 @@ import re
 from . import utils
 from . import ldap as bot_ldap
 
+EXTRA_DEBUG = 5
 
 class MatrixBot():
     def __init__(self, settings):
@@ -687,8 +688,8 @@ Available command aliases:
                     aliases = e['content']['alias']
             self.room_aliases[room_id] = aliases
         except Exception as e:
-            self.logger.debug("Error getting aliases for %s: %s" % (room_id, e))
-            self.logger.debug("Dict: %s" % (room_dict_state))
+            self.logger.log(EXTRA_DEBUG, "Error getting aliases for %s: %s" % (room_id, e))
+            self.logger.log(EXTRA_DEBUG, "Dict: %s" % (room_dict_state))
 
     def get_rooms(self):
         return self.rooms
@@ -701,7 +702,7 @@ Available command aliases:
         self._set_rooms(response)
         self.sync_token = response["next_batch"]
         self.logger.info("!!! sync_token: %s" % (self.sync_token))
-        self.logger.debug("Sync response: %s" % (response))
+        self.logger.log(EXTRA_DEBUG, "Sync response: %s" % (response))
 
         if not ignore:
             # dispatch to plugins
