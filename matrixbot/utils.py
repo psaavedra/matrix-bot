@@ -10,6 +10,8 @@ import logging
 import copy
 import memcache
 
+puts = sys.stdout.write
+
 def get_default_settings():
     settings = {}
     settings["DEFAULT"] = {
@@ -108,3 +110,14 @@ def get_command_alias(message, settings):
 def get_aliases(settings):
     res = copy.copy(settings["aliases"])
     return res
+
+
+class MockBot:
+    def __init__(self):
+        pass
+
+    def get_real_room_id(self, room_id):
+        return room_id or 0
+
+    def send_html(self, room_id, message, **kwargs):
+        puts("Room #{}: {}".format(room_id, message))
