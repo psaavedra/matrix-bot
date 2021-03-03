@@ -428,7 +428,7 @@ class MatrixBot():
                                   (room_id, e))
 
         new_subscriptions_room_ids = []
-        for room_id in self.subscriptions_room_ids:
+        for room_id in list(self.subscriptions_room_ids):
             try:
                 old_room_id = room_id
                 room_id = room_id + ':' + self.domain
@@ -442,7 +442,7 @@ class MatrixBot():
         self.subscriptions_room_ids = new_subscriptions_room_ids
 
         new_revokations_room_ids = []
-        for room_id in self.revokations_rooms_ids:
+        for room_id in list(self.revokations_rooms_ids):
             try:
                 old_room_id = room_id
                 room_id = room_id + ':' + self.domain
