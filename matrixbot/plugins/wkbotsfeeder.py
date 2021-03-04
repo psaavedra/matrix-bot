@@ -64,11 +64,18 @@ class WKBotsFeederPlugin:
     def should_send_message(self, builder, failed):
         return failed or (not builder['only_failures']) or (builder['notify_recoveries'] and builder['recovery'])
 
-    def build_failed(self, build):
-        return not self.build_succeeded(build)
+    def failed(self, build, value = "build successful"):
+        return not self.succeeded(build, value)
 
-    def build_succeeded(self, build):
-        return 'state_string' in build and build['state_string'] == "build successful"
+    def succeeded(self, build, value = "build successful"):
+        return 'state_string' in build and build['state_string'] == value
+
+    def get_step(self, builder, build, stepname):
+        builderid = int(builder['builderid'])
+        buildNumber = int(build['number'])
+        url = "https://build.webkit.org/api/v2/builders/%d/builds/%d/steps?name=%s" % (builderid, buildNumber, stepname)
+        ret = requests.get(url).json()
+        return ret['steps'][0]
 
     def get_last_build(self, builder):
         url = builder['builds_url_schema'] % builder['builderid']
@@ -89,7 +96,12 @@ class WKBotsFeederPlugin:
                 build = self.get_last_build(builder)
                 if builder['last_buildjob'] >= build['number']:
                     continue
-                failed = self.build_failed(build)
+                if 'target_step' in builder:
+                    target_step = builder['target_step']
+                    step = self.get_step(builder, build, target_step['name'])
+                    failed = self.failed(step, target_step['text'])
+                else:
+                    failed = self.failed(build)
                 builder.update({
                     'failed': failed,
                     'last_buildjob': int(build['number']),
