@@ -12,8 +12,7 @@ if os.path.dirname(__file__) == "matrixbot/plugins":
 
 from matrixbot import utils
 
-set_property = utils.set_property
-puts = utils.puts
+pp, puts, set_property = utils.pp, utils.puts, utils.set_property
 
 class WKBotsFeederPlugin:
     def __init__(self, bot, settings):
@@ -42,11 +41,11 @@ class WKBotsFeederPlugin:
         res += "%(last_buildjob)s </a>): " % builder
 
         if builder['recovery']:
-            res += self.format("recovery", color="green", strong="")
+            res += pp("recovery", color="green", strong="")
         elif builder['failed']:
-            res += self.format("failed", color="red", strong="")
+            res += pp("failed", color="red", strong="")
         else:
-            res += self.format("success", color="green", strong="")
+            res += pp("success", color="green", strong="")
         return res
 
     def last_build_url(self, builder):
