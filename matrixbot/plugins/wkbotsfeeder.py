@@ -19,6 +19,9 @@ class WKBotsFeederPlugin:
         self.name = "WKBotsFeederPlugin"
         self.logger = utils.get_logger()
         self.bot = bot
+        self.load(settings)
+
+    def load(self, settings):
         self.settings = settings
         self.logger.info("WKBotsFeederPlugin loaded (%(name)s)" % settings)
         for builder_name, builder in list(self.settings["builders"].items()):
@@ -122,11 +125,24 @@ def selftest():
                 "builderid": 68,
             },
         },
+
     }
     plugin = WKBotsFeederPlugin(utils.MockBot(), settings)
 
     test_dispatch(plugin)
     test_can_fetch_last_build(plugin)
+
+    settings["builders"] = {
+        "JSCOnly-Linux-MIPS32el-Release": {
+            "builderid": 31,
+            "target_step": {
+                "name": "compile-webkit",
+                "text": "compiled"
+            }
+        }
+    }
+    plugin.load(settings)
+    test_dispatch(plugin)
 
 def test_dispatch(plugin):
     print("test_dispatch: ")
