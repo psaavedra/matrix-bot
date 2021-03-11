@@ -245,7 +245,7 @@ class MatrixBot():
                 self.logger.debug("Fail (%s/%s) in call %s action with: %s - %s" % (attempts, max_attempts, action, args, e))
                 attempts -= 1
                 time.sleep(5)
-        return str(e)
+        return None
 
     def send_emote(self, room_id, message):
         return self.call_api("send_emote", 3,
