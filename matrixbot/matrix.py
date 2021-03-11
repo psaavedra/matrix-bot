@@ -198,7 +198,7 @@ class MatrixBot():
                 "Simulated '%s' action in room '%s' over: %s" % (
                     action,
                     target_room_id,
-                    " ".join(selected_users)),
+                    utils.list_to_str(selected_users)),
                 room_id)
         else:
             if len(selected_users) > 0:
@@ -214,7 +214,7 @@ class MatrixBot():
                     msg = '''Action '%s' in room %s over %s''' % (
                         action,
                         target_room_id,
-                        " ".join(selected_users)
+                        utils.list_to_str(selected_users)
                     )
                     self.send_private_message(sender, msg, room_id)
             elif sender:
