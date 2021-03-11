@@ -150,6 +150,10 @@ def pp(text, **kwargs):
    return ret.format(content=text)
 
 
+def list_to_str(l):
+    return " ".join(l) if len(l) > 0 else "no one"
+
+
 class MockBot:
     def __init__(self):
         pass
