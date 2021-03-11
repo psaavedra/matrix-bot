@@ -288,15 +288,20 @@ class MatrixBot():
                              user_room_id, message)
 
     async def loop(self):
+        loop_pool = []
+        loop_max = 10
         await self.sync(ignore=True)  # Ignoring pending old messages
         while True:
             try:
-                task = asyncio.ensure_future(self.sync())
+                loop_pool.append(asyncio.ensure_future(self.sync()))
                 await asyncio.sleep(self.period)
-                try:
-                    await task
-                except asyncio.CancelledError as e:
-                    self.logger.error("matrixbot: Sync cancelled: %s" % e)
+                if loop_pool == loop_max:
+                    while len(loop_pool) > 0:
+                        task = loop_pool.pop()
+                        try:
+                            await task
+                        except asyncio.CancelledError as e:
+                            self.logger.error("matrixbot: Sync cancelled: %s" % e)
             except Exception as e:
                 self.logger.error("matrixbot: Unexpected error: %s" % e)
                 self.logger.error("matrixbot: Unexpected error: %s" % traceback.print_exc())
