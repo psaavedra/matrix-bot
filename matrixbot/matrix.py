@@ -14,10 +14,18 @@ import time
 import traceback
 import re
 
+import email
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+
 from . import utils
 from . import ldap as bot_ldap
 
 EXTRA_DEBUG = 5
+
+class MatrixBotError(Exception):
+    pass
 
 class MatrixBot():
     def __init__(self, settings):
@@ -145,6 +153,53 @@ class MatrixBot():
         except Exception as e:
             return False
         return False
+
+    def check_send_mail_allowed(self, send_to):
+        def _(f, if_, else_):
+            if f == 'all':
+                return if_
+            if isinstance(f, list):
+                for i in f:
+                    if '@' in i:  # assumes is an explicit mailbox
+                        if send_to == i:
+                            return if_
+                    else:  # assumes is a domain
+                        if send_to.split('@')[1] == i:
+                            return if_
+            if not f:  # None
+                return else_
+            return else_
+
+        s = self.settings.get('mail', {})
+        p = s.get('to_policy', 'deny')
+        f = s.get('to_policy_filter', 'all')
+
+        if p == 'allow':
+            return _(f, True, False)
+        if p == 'deny':
+            return _(f, False, True)
+        return False
+
+    def send_mail(self, message, send_to):
+        s = self.settings.get('mail', {})
+        if not self.check_send_mail_allowed(send_to):
+            raise MatrixBotError("Outgoing mails to %s are not allowed" % send_to)
+        mail = MIMEText(message)
+        mail['Subject'] = s.get('subject')
+        mail['From'] = s.get('from')
+        mail['To'] = send_to
+        mail['Reply-To'] = send_to
+        mail['Date'] = email.utils.formatdate()
+        self.logger.debug("Send mail to %s from %s" % (s.get('to'), s.get('from')))
+        self.logger.debug("Send mail content: %s" % message)
+        if self.settings['mail']['ssl']:
+            smtp = smtplib.SMTP_SSL(s.get('host'), s.get('port'),
+                                  context=ssl.create_default_context())
+            smtp.login(s.get('username'), s.get('password'))
+        else:
+            smtp = smtplib.SMTP(self.settings['mail']['host'],
+                                self.settings['mail']['port'])
+        smtp.send_message(mail)
 
     def do_command(self, action, sender, room_id, body, attempts=3):
         if sender:
@@ -679,6 +734,7 @@ class MatrixBot():
 %(prefix)slist [ (@user|+group) ... [ but (@user|+group) ] ]
 %(prefix)slist-rooms
 %(prefix)slist-groups
+%(prefix)sforward-to-email mailbox@example.domain (as reply for a message)
 ''' % vars_
             if body.find("extra") >= 0:
                 msg_help += '''
@@ -703,6 +759,95 @@ Available command aliases:
                     lambda r,m: self.send_private_message(sender, m, None)
                 )
 
+        except MatrixRequestError as e:
+            self.logger.warning(e)
+
+    def do_forward_to_email(self, sender, room_id, body, in_reply_to=None):
+        self.logger.debug("do_forward_to_email")
+        # TODO: This should be a decorator
+        if self.only_local_domain and not self.is_local_user_id(sender):
+            self.logger.warning(
+                "do_forward_to_email is not allowed for external sender (%s)" % sender
+            )
+            return
+
+        if not in_reply_to:
+            msg = "🙋‍♀️: The forward-to-email only works as reply of a previous message"
+            try:
+              self.send_private_message(sender, msg, room_id)
+            except MatrixRequestError as e:
+                self.logger.warning(e)
+            return
+
+        body_arg_list = body.split()[2:]
+        send_to = ""
+        if (len(body_arg_list) > 0):
+            send_to = body_arg_list[0]
+
+        if not send_to:
+            msg = "🙋‍♀️: The forward-to-email command has to be completed with a mail destination"
+            try:
+              self.send_private_message(sender, msg, room_id)
+            except MatrixRequestError as e:
+                self.logger.warning(e)
+            return
+        messages = []
+        replies = {}
+        end = False
+        token = self.sync_token
+        max_iters = 10
+        for i in range(max_iters):
+            r = self.call_api("get_room_messages", 1, room_id, token, "b", 500)
+            for c in r["chunk"]:
+                command = self._get_command(room_id, c)
+                if self.is_command(command, "forward-to-email"):
+                    continue  # 'forward-to-email' are delivery skipped
+                if c.get("type", "") == "m.room.message":
+                    c_in_reply_to = utils.get_in_reply_to(c)
+                    if c_in_reply_to:
+                        if c_in_reply_to in replies:
+                            replies[c_in_reply_to].append(c)
+                        else:
+                            replies[c_in_reply_to]= [c]
+                    else:
+                        messages.append(c)
+                if c['event_id'] == in_reply_to:
+                    end = True
+                    break
+            if end:
+                break
+            token = r["end"]
+
+        content = ""
+        for message in reversed(messages):
+            content += utils.mail_format_event(message, replies)
+
+        aliases = self.get_room_aliases(room_id)
+        message = '''
+Thread forwarded from %s,
+
+- 8< ----------------------------------------------------------------
+
+%s
+- 8< ----------------------------------------------------------------
+
+''' % (aliases if aliases else room_id, content)
+
+        msg = "Messages forwarded to %s" % send_to
+
+        try:
+            self.send_mail(message, send_to)
+        except MatrixBotError as e:
+            msg = "🙋‍♀️: Messages can not be forwarded: %s" % (e)
+            self.logger.error("matrixbot: error: %s" % e)
+            traceback.print_exc()
+        except Exception as e:
+            msg = "🙋‍♀️: Messages can not be forwarded to %s: %s" % (send_to, e)
+            self.logger.error("matrixbot: error: %s" % e)
+            traceback.print_exc()
+
+        try:
+            self.send_message(room_id, msg)
         except MatrixRequestError as e:
             self.logger.warning(e)
 
@@ -799,6 +944,19 @@ Available command aliases:
         for task in _tasks:
             await task
 
+    def _get_command(self, room_id, event):
+        body = event["content"]["body"]
+        if utils.is_reply(event):
+            body = "\n\n".join(body.split("\n\n")[1:])
+
+        is_pm = self.is_private_room(room_id, self.get_user_id())
+
+        if is_pm and not self.is_explicit_call(body):
+            body = "%s: " % self.username.lower() + body
+
+        body = utils.get_command_alias(body, self.settings)
+        return body
+
     async def _process_event(self, room_id, event):
         if not (
             event["type"] == 'm.room.message'
@@ -808,43 +966,41 @@ Available command aliases:
         ):
             return
 
-        sender = event["sender"]
-        body = event["content"]["body"]
-
         if self.commands_enable:
+            sender = event["sender"]
+            is_pm = self.is_private_room(room_id, self.get_user_id())
+            in_reply_to = utils.get_in_reply_to(event)
+            command = self._get_command(room_id, event)
+
             if sender == self.get_user_id():
                 return
 
-            is_pm = self.is_private_room(room_id, self.get_user_id())
-
-            if is_pm and not self.is_explicit_call(body):
-                body = "%s: " % self.username.lower() + body
-
-            body = utils.get_command_alias(body, self.settings)
-            if not body.lower().strip().startswith("%s" % self.username):
+            if not command.lower().strip().startswith("%s" % self.username):
                 return
-            if self.is_command(body, "invite"):
-                self.do_command("invite_user", sender, room_id, body)
-            elif self.is_command(body, "kick"):
-                self.do_command("kick_user", sender, room_id, body)
-            elif self.is_command(body, "join"):
-                self.do_join(sender, room_id, body)
-            elif self.is_command(body, "count"):
-                self.do_count(sender, room_id, body)
-            elif self.is_command(body, "list"):
-                self.do_list(sender, room_id, body)
-            elif self.is_command(body, "list-rooms"):
+            if self.is_command(command, "invite"):
+                self.do_command("invite_user", sender, room_id, by)
+            elif self.is_command(command, "kick"):
+                self.do_command("kick_user", sender, room_id, command)
+            elif self.is_command(command, "join"):
+                self.do_join(sender, room_id, command)
+            elif self.is_command(command, "count"):
+                self.do_count(sender, room_id, command)
+            elif self.is_command(command, "list"):
+                self.do_list(sender, room_id, command)
+            elif self.is_command(command, "list-rooms"):
                 self.do_list_rooms(sender, room_id)
-            elif self.is_command(body, "list-groups"):
+            elif self.is_command(command, "list-groups"):
                 self.do_list_groups(sender, room_id)
-            elif self.is_command(body, "help"):
-                self.do_help(sender, room_id, body, is_pm)
-            elif len (body.split()[1:]) == 0 :
-                self.do_help(sender, room_id, body, is_pm)
+            elif self.is_command(command, "forward-to-email"):
+                self.do_forward_to_email(sender, room_id, command, in_reply_to)
+            elif self.is_command(command, "help"):
+                self.do_help(sender, room_id, command, is_pm)
+            elif len (command.split()[1:]) == 0 :
+                self.do_help(sender, room_id, command, is_pm)
 
         # push to plugins
         for plugin in self.plugins:
             plugin.command(
-                sender, room_id, body,
+                sender, room_id, command,
                 self.send_message
             )
