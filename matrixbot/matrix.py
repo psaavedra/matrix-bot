@@ -14,6 +14,11 @@ import time
 import traceback
 import re
 
+import email
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+
 from . import utils
 from . import ldap as bot_ldap
 
@@ -145,6 +150,25 @@ class MatrixBot():
         except Exception as e:
             return False
         return False
+
+    def send_mail(self, message, send_to):
+        mail = MIMEText(message)
+        mail['Subject'] = self.settings['mail']['subject']
+        mail['From'] = self.settings['mail']['from']
+        mail['To'] = send_to
+        mail['Reply-To'] = self.settings['mail']['from']
+        mail['Date'] = email.utils.formatdate()
+        self.logger.log(EXTRA_DEBUG, "Send mail: %s" % mail)
+        if self.settings['mail']['ssl']:
+            smtp = smtplib.SMTP_SSL(self.settings['mail']['host'],
+                                  self.settings['mail']['port'],
+                                  context=ssl.create_default_context())
+            smtp.login(self.settings['mail']['username'],
+                       self.settings['mail']['password'])
+        else:
+            smtp = smtplib.SMTP(self.settings['mail']['host'],
+                                self.settings['mail']['port'])
+        smtp.send_message(mail)
 
     def do_command(self, action, sender, room_id, body, attempts=3):
         if sender:
@@ -680,6 +704,7 @@ class MatrixBot():
 %(prefix)slist [ (@user|+group) ... [ but (@user|+group) ] ]
 %(prefix)slist-rooms
 %(prefix)slist-groups
+%(prefix)sforward-to-email mailbox@example.domain (as reply for a message)
 ''' % vars_
             if body.find("extra") >= 0:
                 msg_help += '''
@@ -704,6 +729,67 @@ Available command aliases:
                     lambda r,m: self.send_private_message(sender, m, None)
                 )
 
+        except MatrixRequestError as e:
+            self.logger.warning(e)
+
+    def do_forward_to_email(self, sender, room_id, body, in_reply_to=None):
+        self.logger.debug("do_forward_to_email")
+        # TODO: This should be a decorator
+        if self.only_local_domain and not self.is_local_user_id(sender):
+            self.logger.warning(
+                "do_forward_to_email is not allowed for external sender (%s)" % sender
+            )
+            return
+
+        body_arg_list = body.split()[2:]
+        send_to = ""
+        if (len(body_arg_list) > 0):
+            send_to = body_arg_list[0]
+
+        messages = []
+        replies = {}
+        end = False
+        token = self.sync_token
+        max_iters = 10
+        for i in range(max_iters):
+            r = self.call_api("get_room_messages", 1, room_id, token, "b", 500)
+            for c in r["chunk"]:
+                if c.get("type", "") == "m.room.message":
+                    c_in_reply_to = utils.get_in_reply_to(c)
+                    if c_in_reply_to:
+                        if c_in_reply_to in replies:
+                            replies[c_in_reply_to].append(c)
+                        else:
+                            replies[c_in_reply_to]= [c]
+                    else:
+                        messages.append(c)
+                if c['event_id'] == in_reply_to:
+                    end = True
+                    break
+            if end:
+                break
+            token = r["end"]
+
+        content = ""
+        for message in reversed(messages):
+            content += utils.mail_format_event(message, replies)
+
+        aliases = self.get_room_aliases(room_id)
+        message = '''
+Thread forwarded from %s,
+
+- 8< ----------------------------------------------------------------
+
+%s
+- 8< ----------------------------------------------------------------
+
+''' % (aliases[0] if aliases else room_id, content)
+
+        self.send_mail(message, send_to)
+
+        try:
+            msg = "Messages forwarded to %s" % send_to
+            self.send_private_message(sender, msg, room_id)
         except MatrixRequestError as e:
             self.logger.warning(e)
 
@@ -811,12 +897,18 @@ Available command aliases:
 
         sender = event["sender"]
         body = event["content"]["body"]
+        in_reply_to = event['content'].get('m.relates_to', {}).get('m.in_reply_to', {}).get('event_id', None)
 
         if self.commands_enable:
             if sender == self.get_user_id():
                 return
 
             is_pm = self.is_private_room(room_id, self.get_user_id())
+
+            # If the body looks like a reply, remove the first 2 tokens
+            # > <@user:domain.com> body example
+            if body.startswith('> <@'):
+                body = "\n\n".join(body.split("\n\n")[1:])
 
             if is_pm and not self.is_explicit_call(body):
                 body = "%s: " % self.username.lower() + body
@@ -838,6 +930,8 @@ Available command aliases:
                 self.do_list_rooms(sender, room_id)
             elif self.is_command(body, "list-groups"):
                 self.do_list_groups(sender, room_id)
+            elif self.is_command(body, "forward-to-email"):
+                self.do_forward_to_email(sender, room_id, body, in_reply_to)
             elif self.is_command(body, "help"):
                 self.do_help(sender, room_id, body, is_pm)
             elif len (body.split()[1:]) == 0 :

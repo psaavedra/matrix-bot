@@ -23,6 +23,15 @@ def get_default_settings():
         "logfile": "/dev/stdout",
         "period": 30,
     }
+    settings["mail"] = {
+        "host": "127.0.0.1",
+        "port": 25,
+        "ssl": False,
+        "subject": "Matrix bot",
+        "from": "bot@domain.com",
+        "username": "username",
+        "password": "password"
+    }
     settings["memcached"] = {
         "ip": "127.0.0.1",
         "port": 11211,
@@ -152,6 +161,31 @@ def pp(text, **kwargs):
 
 def list_to_str(l):
     return " ".join(l) if len(l) > 0 else "no one"
+
+
+def mail_format_event(event, replies=[], is_reply=False, prefix = ""):
+    f = "[%s] %s%s: %s\n"
+    d = datetime.utcfromtimestamp(event["origin_server_ts"] / 1000).strftime('%Y-%m-%d %H:%M:%S UTC')
+
+    if event['event_id'] in replies:
+        event['replies'] = replies[event['event_id']]
+    else:
+        event['replies'] = []
+
+    if is_reply:
+        body = " ".join(event["content"]["body"].split('\n\n')[1:])
+    else:
+        body = event["content"]["body"]
+    content = f % (d, prefix, event["sender"], body)
+
+    for r in reversed(event['replies']):
+        content += mail_format_event(r, replies, True,
+                                     ''.join([' ' for _ in prefix]) + ' \-> ')
+    return content
+
+
+def get_in_reply_to(event):
+    return  event['content'].get('m.relates_to', {}).get('m.in_reply_to', {}).get('event_id', None)
 
 
 class MockBot:
