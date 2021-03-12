@@ -31,6 +31,8 @@ def get_default_settings():
         "from": "bot@domain.com",
         "username": "username",
         "password": "password"
+        "to_policy": "deny",
+        "to_policy_filter": "all",
     }
     settings["memcached"] = {
         "ip": "127.0.0.1",
@@ -163,15 +165,22 @@ def list_to_str(l):
     return " ".join(l) if len(l) > 0 else "no one"
 
 
+<<<<<<< HEAD
 def mail_format_event(event, replies=[], is_reply=False, prefix = ""):
     f = "[%s] %s%s: %s\n"
     d = datetime.utcfromtimestamp(event["origin_server_ts"] / 1000).strftime('%Y-%m-%d %H:%M:%S UTC')
+=======
+def mail_format_event(event, replies=[], hide_matrix_domain=True, prefix=""):
+    f = "[%s]%s%s: %s\n"
+    d = datetime.utcfromtimestamp(event['origin_server_ts'] / 1000).strftime('%Y-%m-%d %H:%M:%S UTC')
+>>>>>>> a7aa717... Add new command forward-to-email
 
     if event['event_id'] in replies:
         event['replies'] = replies[event['event_id']]
     else:
         event['replies'] = []
 
+<<<<<<< HEAD
     if is_reply:
         body = " ".join(event["content"]["body"].split('\n\n')[1:])
     else:
@@ -181,6 +190,19 @@ def mail_format_event(event, replies=[], is_reply=False, prefix = ""):
     for r in reversed(event['replies']):
         content += mail_format_event(r, replies, True,
                                      ''.join([' ' for _ in prefix]) + ' \-> ')
+=======
+    sender = event['sender'].split(':')[0] if hide_matrix_domain else event['sender']
+    if is_reply(event):
+        body = ' '.join(event['content']['body'].split('\n\n')[1:])
+    else:
+        body = event['content']['body']
+        sender = "[%s]" % sender
+    content = f % (d, prefix, sender, body)
+
+    for r in reversed(event['replies']):
+        content += mail_format_event(r, replies, hide_matrix_domain,
+                                     ''.join([' ' for _ in prefix]) + ' ↪️  ')
+>>>>>>> a7aa717... Add new command forward-to-email
     return content
 
 
@@ -188,6 +210,17 @@ def get_in_reply_to(event):
     return  event['content'].get('m.relates_to', {}).get('m.in_reply_to', {}).get('event_id', None)
 
 
+<<<<<<< HEAD
+=======
+def is_reply(event):
+    in_reply_to = get_in_reply_to(event)
+    body = event["content"]["body"]
+    # If the body looks like a reply, remove the first 2 tokens
+    # > <@user:domain.com> body example
+    return in_reply_to and body.startswith('> <@')
+
+
+>>>>>>> a7aa717... Add new command forward-to-email
 class MockBot:
     def __init__(self):
         pass

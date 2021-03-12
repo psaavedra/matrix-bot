@@ -10,6 +10,17 @@ settings["matrix"] = {
   "domain": "matrix.org",
   "rooms": []
 }
+settings["mail"] = {
+        "host": "127.0.0.1",
+        "port": 25,
+        "ssl": False,
+        "subject": "Matrix bot",
+        "from": "bot@domain.com",
+        "username": "username",
+        "password": "password",
+        "to_policy": "deny",  # or allow
+        "to_policy_filter": "all"  # None or ["domain.com", "mailbox@second-domain.com"]
+}
 settings["memcached"] = {
     "ip": "127.0.0.1",
     "port": 11211,
