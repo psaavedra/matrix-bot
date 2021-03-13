@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
+#
+# Author: Pablo Saavedra
+# Maintainer: Pablo Saavedra
+# Contact: saavedra.pablo at gmail.com
+
+import argparse
+import traceback
+import time
+import sys
+
+from matrixbot import utils
+from matrixbot import matrix
+
+## vars ########################################################################
+conffile = "./matrixbot.cfg"
+days = 1
+sendto = "no-reply@example.domain"
+
+## command line options parser #################################################
+parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--conffile", dest="conffile", default=conffile,
+                    help="Conffile (default: %s)" % conffile)
+parser.add_argument("-s", "--sendto", dest="sendto", default=sendto,
+                    help="Send to (default: %s)" % sendto)
+parser.add_argument("-d", "--days", type=int, dest="days", default=days,
+                    help="Days (default: %s)" % days)
+
+parser.add_argument("room", metavar="ROOM", type=str, help="Room")
+args = parser.parse_args()
+conffile = args.conffile
+days = args.days
+room = args.room
+sendto = args.sendto
+
+# setting up ###################################################################
+settings = utils.get_default_settings()
+utils.setup(conffile, settings)
+logger = utils.create_logger(settings)
+
+
+import time
+import datetime
+
+MAX_ITERS = 10
+
+## main ####################################################################
+if __name__ == '__main__':
+    try:
+        m = matrix.MatrixBot(settings)
+        m.join_rooms(silent=True)
+        token = m.sync_token
+
+        room_id = m.get_real_room_id(room)
+
+        seconds = days * 24 * 3600
+        now = time.time()
+        messages = []
+        replies = {}
+        end = False
+        i = 0
+        max_iters = MAX_ITERS
+        while True:
+            r = m.call_api("get_room_messages", 1, room_id, token, "b", 500)
+            for c in r["chunk"]:
+                if now - seconds > c["origin_server_ts"] / 1000:
+                    end = True
+                    break
+                if c.get("type", "") == "m.room.message":
+                    c_in_reply_to = utils.get_in_reply_to(c)
+                    if c_in_reply_to:
+                        if c_in_reply_to in replies:
+                            replies[c_in_reply_to].append(c)
+                        else:
+                            replies[c_in_reply_to]= [c]
+                    else:
+                        messages.append(c)
+            if end:
+                break
+            i += 1
+            if i == max_iters:
+                logger.warning("Max. iters number reached")
+                break
+            token = r["end"]
+
+        if not len(messages):
+            sys.exit(0)
+
+        content = ""
+        for message in reversed(messages):
+            content += utils.mail_format_event(message, replies)
+
+        aliases = m.get_room_aliases(room_id)
+        message = '''
+Thread forwarded from %s,
+
+- 8< ----------------------------------------------------------------
+
+%s
+- 8< ----------------------------------------------------------------
+
+''' % (aliases if aliases else room, content)
+        try:
+            m.send_mail(message, sendto)
+        except matrix.MatrixBotError as e:
+            traceback.print_exc(e)
+            logger.error("%s" % e)
+        except Exception as e:
+            traceback.print_exc()
+            logger.error("error: %s" % e)
+    except Exception as e:
+        traceback.print_exc()
+        logger.error("Unexpected error: %s" % e)
+
