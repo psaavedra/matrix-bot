@@ -51,8 +51,9 @@ setup(
     },
     scripts=[
         "tools/matrix-bot",
-        "tools/matrix-subscriber",
+        "tools/matrix-digest",
         "tools/matrix-echo",
+        "tools/matrix-subscriber",
     ],
     zip_safe=False,
     install_requires=[
