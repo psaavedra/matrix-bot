@@ -284,8 +284,7 @@ class MatrixBot():
                 3,
                 room_id,
                 "Replying command as PM to %s" % user_id)
-        return self.call_api("send_message", 3,
-                             user_room_id, message)
+        return self.send_message(room_id, message)
 
     async def loop(self):
         loop_pool = []
