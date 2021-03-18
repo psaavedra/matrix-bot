@@ -62,6 +62,8 @@ class WKBotsFeederPlugin:
             self.bot.send_html(room_id, message, msgtype="m.notice")
 
     def should_send_message(self, builder, failed):
+        if "mute" in builder:
+            return False
         return failed or (not builder['only_failures']) or (builder['notify_recoveries'] and builder['recovery'])
 
     def failed(self, build, value = "build successful"):
@@ -115,46 +117,84 @@ class WKBotsFeederPlugin:
             except Exception as e:
                 self.logger.error("WKBotsFeederPlugin got error in builder %s: %s" % (builder_name,e))
 
+    def command(self, sender, room_id, body, handler = None):
+        self.logger.debug("WKBotsFeederPlugin command: %s" % body)
+        if len(body) == 0:
+            return
+        command = body.split()
+        if command[0] != self.settings["name"]:
+            return
+        if len(command) > 1 and command[1].lower() == "mute":
+            self.command_mute(sender, room_id, command[2:], handler)
+        else:
+            self.bot.send_html(room_id, "<p>Unknown command: %s</p>" % body)
 
-    def command(self, sender, room_id, body, handler):
-        self.logger.debug("WKBotsFeederPlugin command")
-        return
+    def command_mute(self, sender, room_id, command, handler):
+        # Command: mute <builder-name> [ON|OFF].
+        if len(command) == 0:
+            self.help(sender, room_id, handler)
+            return
+        builders = self.settings["builders"]
+        builderName = command[0]
+        if builderName not in builders.keys():
+            self.help(sender, room_id, handler)
+            return
+        value = (command[1] if command[1:] else "on").lower()
+        if value not in ["on", "off"]:
+            self.help(sender, room_id, handler)
+            return
+        if value == "on":
+            builders[builderName]["mute"] = True
+        else:
+            builders[builderName].pop("mute")
+        self.bot.send_html(room_id, "<p>Builder '%s' was set to mute %s</p>" % (builderName, value))
 
     def help(self, sender, room_id, handler):
+        if not handler:
+            return
         self.logger.debug("WKBotsFeederPlugin help")
-        return
+        message = "mute <builder-name> [ON|OFF]"
+        handler(room_id, message)
 
 def selftest():
     print("selftest: " + os.path.basename(__file__))
-    settings = {
-        "name": "wk",
-        "last_buildjob_url_schema": "https://build.webkit.org/#/builders/%d/builds/%d",
-        "builds_url_schema": "https://build.webkit.org/api/v2/builders/%d/builds?complete=true&order=-number&limit=1",
-        "only_failures": False,
-        "rooms": ["0"],
-        "builders": {
-            "GTK-Linux-64-bit-Release-Ubuntu-LTS-Build": {
-                "builderid": 68,
-            },
-        },
 
-    }
-    plugin = WKBotsFeederPlugin(utils.MockBot(), settings)
+    def webkitBuilderSettings():
+        return {
+            "name": "WKBotsFeederPlugin",
+            "last_buildjob_url_schema": "https://build.webkit.org/#/builders/%d/builds/%d",
+            "builds_url_schema": "https://build.webkit.org/api/v2/builders/%d/builds?complete=true&order=-number&limit=1",
+            "only_failures": False,
+            "rooms": ["0"],
+            "builders": {
+                "GTK-Linux-64-bit-Release-Ubuntu-LTS-Build": {
+                    "builderid": 68,
+                },
+            },
+        }
+    def jsCoreBuilderSettings():
+        ret = webkitBuilderSettings()
+        ret["builders"] = {
+            "JSCOnly-Linux-MIPS32el-Release": {
+                "builderid": 31,
+                "target_step": {
+                    "name": "compile-webkit",
+                    "text": "compiled"
+                }
+            }
+        }
+        return ret
+
+    plugin = WKBotsFeederPlugin(utils.MockBot(), webkitBuilderSettings())
 
     test_dispatch(plugin)
     test_can_fetch_last_build(plugin)
 
-    settings["builders"] = {
-        "JSCOnly-Linux-MIPS32el-Release": {
-            "builderid": 31,
-            "target_step": {
-                "name": "compile-webkit",
-                "text": "compiled"
-            }
-        }
-    }
-    plugin.load(settings)
+    plugin.load(jsCoreBuilderSettings())
     test_dispatch(plugin)
+
+    plugin.load(webkitBuilderSettings())
+    test_mute_command(plugin)
 
 def test_dispatch(plugin):
     print("test_dispatch: ")
@@ -170,6 +210,34 @@ def test_can_fetch_last_build(plugin):
     builder = plugin.settings['builders']["GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"]
     build = plugin.get_last_build(builder)
     assert(build)
+    print("Ok")
+
+def test_mute_command(plugin):
+    puts("test_mute_command: ")
+    logging.basicConfig(level = logging.DEBUG)
+
+    builder = plugin.settings['builders']["GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"]
+    sender = "user"
+    room_id = plugin.settings["rooms"][0]
+
+    # mute <builder-name>.
+    body = "WKBotsFeederPlugin mute GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"
+    plugin.command(sender, room_id, body)
+    assert(plugin.settings['builders']["GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"]["mute"])
+    print("")
+
+    # mute <builder-name> off.
+    body = "WKBotsFeederPlugin mute GTK-Linux-64-bit-Release-Ubuntu-LTS-Build off"
+    plugin.command(sender, room_id, body)
+    assert("mute" not in plugin.settings['builders']["GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"])
+    print("")
+
+    # mute <builder-name>.
+    body = "WKBotsFeederPlugin mute GTK-Linux-64-bit-Release-Ubuntu-LTS-Build on"
+    plugin.command(sender, room_id, body)
+    assert(plugin.settings['builders']["GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"]["mute"])
+    print("")
+
     print("Ok")
 
 if __name__ == '__main__':
