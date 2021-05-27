@@ -201,7 +201,16 @@ class MatrixBot():
                                 self.settings['mail']['port'])
         smtp.send_message(mail)
 
-    def do_command(self, action, sender, room_id, body, attempts=3):
+    def do_command(self, action, sender, room_id, command, attempts=3):
+        """
+        action  : The action to execute
+        sender  : The sender of the message
+        room_id : The actual Id of the room where the message was sent. It is
+                  used as default target_room_id if there is not other room id as
+                  paramenter in the command
+        command : Format: user: action [dryrun] #room:domain @user:domain [!group:domain] ...
+        attempts: Maximum number of retries to execute the action
+        """
         if sender:
             sender = self.normalize_user_id(sender)
 
@@ -212,24 +221,26 @@ class MatrixBot():
             )
             return
 
-        body_arg_list = body.split()[2:]
+        # command: bot invite #room:domain @user:domain ...
+        #          [0] [1]    [2]          [3:]
+        command_arg_list = command.split()[2:]
         dry_mode = False
         if (
-            len(body_arg_list) > 0 and
-            body_arg_list[0] == "dryrun"
+            len(command_arg_list) > 0 and
+            command_arg_list[0] == "dryrun"
         ):
             dry_mode = True
-            body_arg_list = body.split()[3:]
+            command_arg_list = command_arg_list[1:]
         target_room_id = room_id
         if (
-            len(body_arg_list) > 0 and
+            len(command_arg_list) > 0 and
             (
-                body_arg_list[0].startswith('!') or
-                body_arg_list[0].startswith('#')
+                command_arg_list[0].startswith('!') or
+                command_arg_list[0].startswith('#')
             )
         ):
-            target_room_id = self.get_real_room_id(body_arg_list[0])
-            body_arg_list = body_arg_list[1:]
+            target_room_id = self.get_real_room_id(command_arg_list[0])
+            command_arg_list = command_arg_list[1:]
 
         if sender and not self.is_room_member(target_room_id, sender):
             msg = "%s is not allowed for not members (%s) of the room (%s)" % (action, sender, target_room_id)
@@ -243,9 +254,9 @@ class MatrixBot():
                                self.get_room_members(target_room_id)["chunk"]))
 
         if action == "invite_user":
-            selected_users = set(self._get_selected_users(body_arg_list)).difference(room_members)
+            selected_users = set(self._get_selected_users(command_arg_list)).difference(room_members)
         if action == "kick_user":
-            selected_users = room_members.intersection(self._get_selected_users(body_arg_list))
+            selected_users = room_members.intersection(self._get_selected_users(command_arg_list))
 
         if dry_mode and sender:
             self.send_private_message(
@@ -279,13 +290,13 @@ class MatrixBot():
 
     def invite_subscriptions(self):
         for room_id in self.subscriptions_room_ids:
-            body = "bender: invite " + self.settings["subscriptions"][room_id]
-            self.do_command("invite_user", None, room_id, body, attempts=1)
+            command = self.username.lower() + ": invite " + self.settings["subscriptions"][room_id]
+            self.do_command("invite_user", None, room_id, command, attempts=1)
 
     def kick_revokations(self):
         for room_id in self.revokations_rooms_ids:
-            body = "bender: kick " + self.settings["revokations"][room_id]
-            self.do_command("kick_user", None, room_id, body, attempts=1)
+            command = self.username.lower() + ": kick " + self.settings["revokations"][room_id]
+            self.do_command("kick_user", None, room_id, command, attempts=1)
 
     def call_api(self, action, max_attempts, *args):
         method = getattr(self.client.api, action)
@@ -978,7 +989,7 @@ Thread forwarded from %s,
             if not command.lower().strip().startswith("%s" % self.username):
                 return
             if self.is_command(command, "invite"):
-                self.do_command("invite_user", sender, room_id, by)
+                self.do_command("invite_user", sender, room_id, command)
             elif self.is_command(command, "kick"):
                 self.do_command("kick_user", sender, room_id, command)
             elif self.is_command(command, "join"):
