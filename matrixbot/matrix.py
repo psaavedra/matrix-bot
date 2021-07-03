@@ -146,6 +146,11 @@ class MatrixBot():
         self.logger.debug("get_room_members (non cached): %s" % (key))
         return res
 
+    def refresh_room_members(self, room_id):
+        key = "get_room_members-%s" % room_id
+        self.cache.delete(key)
+        self.logger.debug("refresh_room_members: %s" % (key))
+
     def is_room_member(self, room_id, user_id):
         try:
             r = Room(self.client, room_id)
@@ -255,8 +260,10 @@ class MatrixBot():
 
         if action == "invite_user":
             selected_users = set(self._get_selected_users(command_arg_list)).difference(room_members)
+            self.refresh_room_members(target_room_id)
         if action == "kick_user":
-            selected_users = room_members.intersection(self._get_selected_users(command_arg_list))
+            selected_users = set(self._get_selected_users(command_arg_list)).intersection(room_members)
+            self.refresh_room_members(target_room_id)
 
         if dry_mode and sender:
             self.send_private_message(
