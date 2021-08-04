@@ -922,7 +922,7 @@ Thread forwarded from %s,
     async def sync(self, ignore=False, timeout_ms=30000):
         response = None
         try:
-            response = self.client.api.sync(self.sync_token, timeout_ms, full_state='true')
+            response = self.client.api.sync(self.sync_token, timeout_ms, full_state=True)
             self._set_rooms(response)
             self.sync_token = response["next_batch"]
             self.logger.info("!!! sync_token: %s" % (self.sync_token))
