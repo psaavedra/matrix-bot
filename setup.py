@@ -58,7 +58,7 @@ setup(
     zip_safe=False,
     install_requires=[
         "getconf==1.5.1",
-        "matrix-client==0.0.6",
+        "matrix-client==0.4.0",
         "python-ldap==3.1.0",
         "python-memcached==1.59",
         "feedparser==6.0.2",
