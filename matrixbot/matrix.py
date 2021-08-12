@@ -157,6 +157,7 @@ class MatrixBot():
             room_members = [m.user_id for m in r.get_joined_members()]
             return user_id in room_members
         except Exception as e:
+            self.logger.error("Error when fetching room members: %s" % e)
             return False
         return False
 
