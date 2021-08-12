@@ -154,7 +154,8 @@ class MatrixBot():
     def is_room_member(self, room_id, user_id):
         try:
             r = Room(self.client, room_id)
-            return user_id in list(r.get_joined_members().keys())
+            room_members = [m.user_id for m in r.get_joined_members()]
+            return user_id in room_members
         except Exception as e:
             return False
         return False
