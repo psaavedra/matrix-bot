@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import json
 import os
@@ -72,7 +72,7 @@ class WKTestBotsFeederPlugin:
     def summary(self, build):
         return build['state_string']
 
-    def dispatch(self, handler):
+    def dispatch(self):
         self.logger.debug("WKTestBotsFeederPlugin dispatch")
         now = time.time()
         if now < self.lasttime + self.period:
