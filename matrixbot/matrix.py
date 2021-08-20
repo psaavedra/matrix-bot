@@ -913,9 +913,9 @@ Thread forwarded from %s,
         for plugin in self.plugins:
             _tasks.append(asyncio.create_task(_(plugin, self.send_message)))
         _tasks.append(asyncio.ensure_future(
-            self.sync_invitations(response['rooms'].get('invite'))))
+            self.sync_invitations(response['rooms'].get('invite', {}))))
         _tasks.append(asyncio.ensure_future(
-            self.sync_joins(response['rooms']['join'])))
+            self.sync_joins(response['rooms'].get('join', {}))))
         for task in _tasks:
             await task
 
