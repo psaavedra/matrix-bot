@@ -14,4 +14,4 @@ pytz==2018.9
 requests==2.26.0
 sgmllib3k==1.0.0
 six==1.16.0
-urllib3==1.24.3
+urllib3==1.26.5
