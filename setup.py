@@ -3,6 +3,10 @@ import os
 
 here = os.path.abspath(os.path.dirname(__file__))
 
+try: # for pip >= 10
+    from pip._internal.req import parse_requirements
+except ImportError: # for pip <= 9.0.3
+    from pip.req import parse_requirements
 
 def read_file(path_segments):
     """Read a file from the package. Takes a list of strings to join to
@@ -56,16 +60,7 @@ setup(
         "tools/matrix-subscriber",
     ],
     zip_safe=False,
-    install_requires=[
-        "getconf==1.5.1",
-        "matrix-client==0.4.0",
-        "python-ldap==3.1.0",
-        "python-memcached==1.59",
-        "feedparser==6.0.2",
-        "pytz==2018.9",
-        "requests==2.21.0",
-        "python-dateutil==2.8.1",
-    ],
+    install_requires = list(map(lambda x:x.requirement,parse_requirements('requirements.txt', session=''))),
 
     download_url='https://github.com/psaavedra/matrix-bot/zipball/master',
     classifiers=[
