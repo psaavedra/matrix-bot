@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import xmlrpc.client
 from datetime import datetime, timedelta
 from matrixbot import utils
