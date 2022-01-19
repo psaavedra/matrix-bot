@@ -72,7 +72,7 @@ class WKTestBotsFeederPlugin:
     def summary(self, build):
         return build['state_string']
 
-    def dispatch(self):
+    def dispatch(self, handler):
         self.logger.debug("WKTestBotsFeederPlugin dispatch")
         now = time.time()
         if now < self.lasttime + self.period:
