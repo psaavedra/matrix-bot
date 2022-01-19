@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-   let program_name=$(basename "$0")
+   local program_name=$(basename "$0")
    echo "Usage: $program_name [CONFIG-FILE] | [URI] [ROOM..]"
    exit $1
 }
@@ -79,7 +79,7 @@ scan_args "$@"
 trap cleanup SIGINT SIGHUP EXIT
 
 if [[ "${#ARGS[@]}" -eq 1 ]]; then
-   TEMPLATE="${#ARGS[0]}"
+   TEMPLATE="${ARGS[0]}"
    if [[ ! -f "$TEMPLATE" ]]; then
       echo "Could not find config file: $TEMPLATE"
       exit 1
