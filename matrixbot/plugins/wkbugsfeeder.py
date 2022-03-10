@@ -39,8 +39,9 @@ class WKBugsFeederPlugin(FeederPlugin):
                     status = " (UPDATED)"
         except Exception:
             status = ""
+
         link = entry.get("link", "")
-        if link is not "":
+        if link and len(link) > 0:
             link = " (%s)" % link
         res = """%s%s%s%s""" % (title, author, link, status)
         return res
