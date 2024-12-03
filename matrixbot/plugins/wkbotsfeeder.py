@@ -177,10 +177,10 @@ def selftest():
     def jsCoreBuilderSettings():
         ret = webkitBuilderSettings()
         ret["builders"] = {
-            "JSCOnly-Linux-MIPS32el-Release": {
-                "builderid": 31,
+            "JSCOnly-Linux-ARMv7-Thumb2-Release": {
+                "builderid": 24,
                 "target_step": {
-                    "name": "compile-webkit",
+                    "name": "compile-jsc",
                     "text": "compiled"
                 }
             }
@@ -206,19 +206,21 @@ def test_dispatch(plugin):
     plugin.dispatch()
     print("")
     print("Ok")
+    print("--")
 
 def test_can_fetch_last_build(plugin):
     puts("test_can_fetch_last_build: ")
     builder = plugin.settings['builders']["GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"]
     build = plugin.get_last_build(builder)
     assert(build)
+    print("")
     print("Ok")
+    print("--")
 
 def test_mute_command(plugin):
-    puts("test_mute_command: ")
+    print("test_mute_command: ")
     logging.basicConfig(level = logging.DEBUG)
 
-    builder = plugin.settings['builders']["GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"]
     sender = "user"
     room_id = plugin.settings["rooms"][0]
 
@@ -241,6 +243,7 @@ def test_mute_command(plugin):
     print("")
 
     print("Ok")
+    print("--")
 
 if __name__ == '__main__':
     selftest()
