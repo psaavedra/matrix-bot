@@ -126,8 +126,11 @@ class WKBotsFeederPlugin:
         command = body.split()
         if command[0] != self.settings["name"]:
             return
-        if len(command) > 1 and command[1].lower() == "mute":
-            self.command_mute(sender, room_id, command[2:], handler)
+        if len(command) > 1:
+            if command[1].lower() == "mute":
+                self.command_mute(sender, room_id, command[2:], handler)
+            elif command[1].lower() == "status":
+                self.command_status(sender, room_id)
         else:
             self.bot.send_html(room_id, "<p>Unknown command: %s</p>" % body)
 
@@ -150,6 +153,12 @@ class WKBotsFeederPlugin:
         else:
             builders[builderName].pop("mute")
         self.bot.send_html(room_id, "<p>Builder '%s' was set to mute %s</p>" % (builderName, value))
+
+    def command_status(self, sender, room_id):
+        for builderName, builder in list(self.settings["builders"].items()):
+            build_url = self.last_build_url(builder)
+            failed = builder.get("failed") or False
+            self.bot.send_html(room_id, "<p>%s (%s): %s\n" % (builderName, build_url, failed and "failed" or "Ok"))
 
     def help(self, sender, room_id, handler):
         if not handler:
@@ -198,6 +207,9 @@ def selftest():
     plugin.load(webkitBuilderSettings())
     test_mute_command(plugin)
 
+    plugin.load(webkitBuilderSettings())
+    test_status_command(plugin)
+
 def test_dispatch(plugin):
     print("test_dispatch: ")
     logging.basicConfig(level = logging.DEBUG)
@@ -241,6 +253,20 @@ def test_mute_command(plugin):
     plugin.command(sender, room_id, body)
     assert(plugin.settings['builders']["GTK-Linux-64-bit-Release-Ubuntu-LTS-Build"]["mute"])
     print("")
+
+    print("Ok")
+    print("--")
+
+def test_status_command(plugin):
+    print("test_status_command: ")
+    logging.basicConfig(level = logging.DEBUG)
+
+    sender = "user"
+    room_id = plugin.settings["rooms"][0]
+
+    # mute <builder-name>.
+    body = "WKBotsFeederPlugin status"
+    plugin.command(sender, room_id, body)
 
     print("Ok")
     print("--")
