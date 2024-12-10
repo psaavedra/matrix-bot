@@ -8,6 +8,7 @@ import requests
 import sys
 import urllib.request, urllib.parse, urllib.error
 import time
+import datetime
 
 if os.path.dirname(__file__) == "matrixbot/plugins":
     sys.path.append(os.path.abspath("."))
@@ -15,6 +16,8 @@ if os.path.dirname(__file__) == "matrixbot/plugins":
 from matrixbot import utils
 
 pp, puts, set_property = utils.pp, utils.puts, utils.set_property
+
+SIX_HOURS = 6 * (60 * 60)
 
 class WKBotsFeederPlugin:
     def __init__(self, bot, settings):
@@ -38,19 +41,14 @@ class WKBotsFeederPlugin:
         self.lasttime = time.time()
         self.period = self.settings.get('period', 60)
 
-    def pretty_entry(self, builder):
+    def pretty_message(self, builder, msg):
         url = self.last_build_url(builder)
 
         res = "%(builder_name)s " % builder
         res += "(<a href='%s'>" % url
         res += "%(last_buildjob)s </a>): " % builder
+        res += msg
 
-        if builder['recovery']:
-            res += pp("recovery", color="green", strong="")
-        elif builder['failed']:
-            res += pp("failed", color="red", strong="")
-        else:
-            res += pp("success", color="green", strong="")
         return res
 
     def last_build_url(self, builder):
@@ -93,11 +91,20 @@ class WKBotsFeederPlugin:
             return  # Feeder is only updated each 'period' time
         self.lasttime = now
 
-        res = []
         for builder_name, builder in list(self.settings["builders"].items()):
             self.logger.debug("WKBotsFeederPlugin dispatch: Fetching %s ..." % builder_name)
             try:
                 build = self.get_last_build(builder)
+
+                if not builder.stopped and bool(build["complete"]) and int(build["complete_at"]) + SIX_HOURS < now:
+                    date = datetime.datetime.fromtimestamp(int(build["complete_at"]))
+                    self.pretty_message(builder, "Last successful build completed on '%s'. Bot may be stopped." % date.strftime("%Y-%m-%d %H:%M:%S"))
+                    builder.stopped = True
+                    continue
+
+                if builder.stopped and bool(build["complete"]) and int(build["complete_at"]) + SIX_HOURS >= now:
+                    builder.stopped = False
+
                 if builder['last_buildjob'] >= build['number']:
                     continue
                 if 'target_step' in builder:
@@ -106,6 +113,7 @@ class WKBotsFeederPlugin:
                     failed = self.failed(step, target_step['text'])
                 else:
                     failed = self.failed(build)
+
                 builder.update({
                     'failed': failed,
                     'last_buildjob': int(build['number']),
@@ -114,8 +122,12 @@ class WKBotsFeederPlugin:
 
                 if self.should_send_message(builder, failed):
                     self.logger.debug("WKBotsFeederPlugin: Should send message")
-                    message = self.pretty_entry(builder)
-                    self.send(message)
+                    if builder['recovery']:
+                        self.send(self.pretty_message(builder, pp("recovery", color="green")))
+                    elif builder['failed']:
+                        self.send(self.pretty_message(builder, pp("failed", color="red")))
+                    else:
+                        self.send(self.pretty_message(builder, pp("success", color="green")))
             except Exception as e:
                 self.logger.error("WKBotsFeederPlugin got error in builder %s: %s" % (builder_name,e))
 
