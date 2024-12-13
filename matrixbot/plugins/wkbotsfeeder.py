@@ -84,11 +84,25 @@ class WKBotsFeederPlugin:
         ret = requests.get(url).json()
         return ret['builds'][0]
 
+    def has_changed_day(self, tstamp1, tstamp2):
+        date1 = datetime.datetime.fromtimestamp(int(tstamp1))
+        date2 = datetime.datetime.fromtimestamp(int(tstamp2))
+        return date1.strftime("%Y-%m-%d") != date2.strftime("%Y-%m-%d")
+
     def dispatch(self, handler=None):
         self.logger.debug("WKBotsFeederPlugin dispatch")
         now = time.time()
         if now < self.lasttime + self.period:
             return  # Feeder is only updated each 'period' time
+
+        if self.has_changed_day(now, self.lasttime):
+            for builder_name, builder in list(self.settings["builders"].items()):
+                try:
+                    build = self.get_last_build(builder)
+                    self.pretty_message(builder, self.succeeded(build) and pp("OK", color="green") or pp("Failed", color="red"))
+                except Exception as e:
+                    self.logger.error("WKBotsFeederPlugin got error in builder %s: %s" % (builder_name,e))
+
         self.lasttime = now
 
         for builder_name, builder in list(self.settings["builders"].items()):
