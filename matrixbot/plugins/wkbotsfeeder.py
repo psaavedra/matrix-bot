@@ -96,14 +96,17 @@ class WKBotsFeederPlugin:
             try:
                 build = self.get_last_build(builder)
 
-                if not builder.stopped and bool(build["complete"]) and int(build["complete_at"]) + SIX_HOURS < now:
+                if 'stopped' not in builder:
+                    builder['stopped'] = False
+
+                if not builder['stopped'] and bool(build["complete"]) and int(build["complete_at"]) + SIX_HOURS < now:
                     date = datetime.datetime.fromtimestamp(int(build["complete_at"]))
                     self.pretty_message(builder, "Last successful build completed on '%s'. Bot may be stopped." % date.strftime("%Y-%m-%d %H:%M:%S"))
-                    builder.stopped = True
+                    builder['stopped'] = True
                     continue
 
-                if builder.stopped and bool(build["complete"]) and int(build["complete_at"]) + SIX_HOURS >= now:
-                    builder.stopped = False
+                if builder['stopped'] and bool(build["complete"]) and int(build["complete_at"]) + SIX_HOURS >= now:
+                    builder['stopped'] = False
 
                 if builder['last_buildjob'] >= build['number']:
                     continue
